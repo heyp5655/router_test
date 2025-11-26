@@ -1,0 +1,3 @@
+from .cellular_supported_network_standards import CellularSupportedNetworkStandardsTest
+
+__all__ = ['CellularSupportedNetworkStandardsTest']

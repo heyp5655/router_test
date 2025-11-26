@@ -1,0 +1,14 @@
+web:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+
+test:
+  default_timeout: 30
+  retry_times: 3
+  screenshot_on_failure: true
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"

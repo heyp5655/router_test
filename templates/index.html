@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路由器自动化测试平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px 0;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .header-info {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .info-item {
+            text-align: center;
+        }
+        
+        .info-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .info-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .section {
+            background: white;
+            margin-bottom: 25px;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .section-title i {
+            margin-right: 10px;
+            color: #2a5298;
+        }
+        
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2a5298;
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -10px;
+        }
+        
+        .form-group {
+            flex: 1 0 200px;
+            margin: 0 10px 20px;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2a5298;
+            box-shadow: 0 0 0 2px rgba(42, 82, 152, 0.1);
+        }
+        
+        .control-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(42, 82, 152, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #555;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .progress-container {
+            flex-grow: 1;
+            max-width: 500px;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        
+        .result-overview {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .result-item {
+            flex: 1;
+        }
+        
+        .result-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .result-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .result-pass {
+            color: #28a745;
+        }
+        
+        .result-fail {
+            color: #dc3545;
+        }
+        
+        .result-error {
+            color: #ffc107;
+        }
+        
+        .result-running {
+            color: #17a2b8;
+        }
+        
+        .test-details {
+            margin-top: 20px;
+        }
+        
+        .test-case {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            background: #f8f9fa;
+            border-left: 4px solid #ddd;
+        }
+        
+        .test-case.pass {
+            border-left-color: #28a745;
+        }
+        
+        .test-case.fail {
+            border-left-color: #dc3545;
+        }
+        
+        .test-case.running {
+            border-left-color: #17a2b8;
+        }
+        
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .test-name {
+            font-weight: 600;
+        }
+        
+        .test-status {
+            font-weight: 600;
+        }
+        
+        .test-log {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* 实时日志容器样式 */
+        .log-container {
+            margin-top: 20px;
+            max-height: 700px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.1;
+            text-align: left;
+        }
+
+        .log-line {
+            margin: 0;
+            padding: 0;
+            text-align: left;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .log-info { color: #569cd6; }
+        .log-warning { color: #ffcc00; }
+        .log-error { color: #f44747; }
+        .log-success { color: #4ec9b0; }
+        .log-debug { color: #9cdcfe; }
+        
+        .no-logs {
+            color: #6c757d;
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+        
+        .no-results i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+        
+        .expand-btn {
+            background: none;
+            border: none;
+            color: #2a5298;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 5px;
+        }
+        
+        /* 树形结构样式 */
+        .test-case-tree {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+        
+        .tree-node {
+            margin-bottom: 5px;
+        }
+        
+        .tree-node-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            cursor: pointer;
+            user-select: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .tree-node-header:hover {
+            background-color: #e9ecef;
+        }
+        
+        .tree-node-icon {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .tree-node-children {
+            margin-left: 20px;
+            border-left: 1px dashed #ddd;
+            padding-left: 10px;
+        }
+        
+        /* 修改测试用例项的样式 */
+        .test-case-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            margin-left: 20px;
+            justify-content: space-between; /* 让标题和复选框分别靠左右 */
+        }
+        
+        .test-case-checkbox {
+            flex-shrink: 0; /* 防止复选框被压缩 */
+            width: 16px; /* 固定宽度 */
+            height: 16px;
+            margin-left: 10px; /* 与标题保持一定距离 */
+        }
+        
+        .test-case-name {
+            flex-grow: 1; /* 标题占据剩余空间 */
+            font-size: 14px;
+            margin-right: 10px; /* 与复选框保持一定距离 */
+        }
+        
+        .regression-tag {
+            background-color: #4a90e2;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        
+        .category-tag {
+            background-color: #6c757d;
+            color: white;
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        
+        .filter-section {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .filter-select {
+            min-width: 150px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .selection-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .tree-node-title {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .tree-node-count {
+            margin-left: 8px;
+            background: #6c757d;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* 修复用例标题对齐问题 - 新的样式 */
+        .test-case-item-aligned {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            margin-left: 0; /* 移除左边距 */
+            padding-left: 34px; /* 与最后一级标题对齐 */
+            justify-content: space-between; /* 让标题和复选框分别靠左右 */
+        }
+        
+        .test-case-item-aligned .test-case-name {
+            flex-grow: 1; /* 标题占据剩余空间 */
+            margin-right: 10px; /* 与复选框保持一定距离 */
+        }
+        
+        .test-case-item-aligned .test-case-checkbox {
+            flex-shrink: 0; /* 防止复选框被压缩 */
+            width: 16px; /* 固定宽度 */
+            height: 16px;
+            margin-left: 10px; /* 与标题保持一定距离 */
+        }
+        
+        /* 添加刷新按钮样式 */
+        .refresh-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+        
+        .refresh-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .refresh-btn .fa-spin {
+            animation: fa-spin 1s infinite linear;
+        }
+        
+        .last-refresh-time {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        /* 新增：路由器配置分组样式 */
+        .config-group {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .config-group-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2a5298;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+        }
+        
+        .config-group-title i {
+            margin-right: 10px;
+        }
+        
+        .router-info-group {
+            border-left: 4px solid #2a5298;
+        }
+        
+        .module-info-group {
+            border-left: 4px solid #28a745;
+        }
+        
+        .sim-info-group {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .local-pc-config-group {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .mqtt-config-group {
+            border-left: 4px solid #fd7e14;
+        }
+
+        .modbus-config-group {
+            border-left: 4px solid #6610f2;
+        }
+
+        .config-grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .config-grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 实时日志控制按钮 */
+        .log-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .log-control-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .log-control-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        @media (max-width: 768px) {
+            .form-group {
+                flex: 1 0 100%;
+            }
+            
+            .control-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .progress-container {
+                max-width: 100%;
+            }
+            
+            .result-overview {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .filter-section {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container">
+        <header>
+            <div class="header-content">
+                <h1><i class="fas fa-wifi"></i> 路由器自动化测试平台</h1>
+                <div class="header-info">
+                    <div class="info-item">
+                        <div class="info-value">{{ testCases.length }}</div>
+                        <div class="info-label">测试用例</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value">{{ lastTestTime }}</div>
+                        <div class="info-label">最后测试</div>
+                    </div>
+                    <div class="info-item">
+                        <button class="refresh-btn" @click="refreshTestCases" :disabled="isRefreshing">
+                            <i class="fas" :class="isRefreshing ? 'fa-spinner fa-spin' : 'fa-sync-alt'"></i>
+                            {{ isRefreshing ? '刷新中...' : '刷新用例' }}
+                        </button>
+                        <div class="last-refresh-time" v-if="lastRefreshTime">
+                            最后刷新: {{ lastRefreshTime }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- 路由器配置 -->
+        <div class="section">
+            <div class="section-title">
+                <i class="fas fa-router"></i>
+                <h2>路由器配置</h2>
+            </div>
+            
+            <div class="config-group router-info-group">
+                <div class="config-group-title">
+                    <i class="fas fa-info-circle"></i>
+                    <span>路由器信息</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="router_ip">路由器IP地址</label>
+                        <input type="text" id="router_ip" v-model="routerConfig.router_ip" placeholder="192.168.1.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" v-model="routerConfig.username" placeholder="admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="text" id="password" v-model="routerConfig.password" placeholder="password">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="model">路由器型号</label>
+                        <input type="text" id="model" v-model="routerConfig.model" placeholder="UR35">
+                    </div>
+                    <div class="form-group">
+                        <label for="serial_number">序列号</label>
+                        <input type="text" id="serial_number" v-model="routerConfig.serial_number" placeholder="SN123456789">
+                    </div>
+                    <div class="form-group">
+                        <label for="firmware_version">固件版本</label>
+                        <input type="text" id="firmware_version" v-model="routerConfig.firmware_version" placeholder="V2.1.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="hardware_version">硬件版本</label>
+                        <input type="text" id="hardware_version" v-model="routerConfig.hardware_version" placeholder="HW1.0">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="config-group module-info-group">
+                <div class="config-group-title">
+                    <i class="fas fa-microchip"></i>
+                    <span>模组信息</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="module_type">模组类型</label>
+                        <select id="module_type" v-model="routerConfig.module_type">
+                            <option value="auto">自动检测</option>
+                            <option value="quectel">移远模组</option>
+                            <option value="meig">美格模组</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="module_model">模组型号</label>
+                        <input type="text" id="module_model" v-model="routerConfig.module_model" placeholder="EC20">
+                    </div>
+                    <div class="form-group">
+                        <label for="module_version">模组版本</label>
+                        <input type="text" id="module_version" v-model="routerConfig.module_version" placeholder="V1.0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIM卡信息和本地测试电脑配置 - 左右布局 -->
+            <div class="config-grid-container">
+                <!-- 左侧: SIM卡信息 -->
+                <div class="config-group sim-info-group">
+                    <div class="config-group-title">
+                        <i class="fas fa-sim-card"></i>
+                        <span>SIM卡信息</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="sim_operator">SIM卡所属运营商</label>
+                            <select id="sim_operator" v-model="routerConfig.sim_operator">
+                                <option value="">请选择运营商</option>
+                                <optgroup label="主要运营商">
+                                    <option value="cmcc">中国移动</option>
+                                    <option value="ctcc">中国电信</option>
+                                    <option value="cucc">中国联通</option>
+                                </optgroup>
+                                <optgroup label="其他运营商">
+                                    <option value="other">其他运营商</option>
+                                    <option value="virtual">虚拟运营商</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧: 本地测试电脑配置 -->
+                <div class="config-group local-pc-config-group">
+                    <div class="config-group-title">
+                        <i class="fas fa-desktop"></i>
+                        <span>本地测试电脑配置</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="serial_port">
+                                系统串口号
+                                <button class="refresh-btn" @click="loadSerialPorts" :disabled="isLoadingPorts" style="margin-left: 10px; padding: 4px 8px; font-size: 12px;">
+                                    <i class="fas" :class="isLoadingPorts ? 'fa-spinner fa-spin' : 'fa-sync-alt'"></i>
+                                    {{ isLoadingPorts ? '检测中...' : '刷新' }}
+                                </button>
+                            </label>
+                            <select id="serial_port" v-model="routerConfig.serial_port">
+                                <option value="" disabled>请选择串口</option>
+                                <option v-for="port in availableSerialPorts" :key="port.device" :value="port.device">
+                                    {{ port.device }} - {{ port.description }}
+                                </option>
+                                <option v-if="availableSerialPorts.length === 0 && !isLoadingPorts" value="COM3">
+                                    COM3 (默认)
+                                </option>
+                            </select>
+                            <div v-if="serialPortError" style="color: #dc3545; font-size: 12px; margin-top: 5px;">
+                                {{ serialPortError }}
+                            </div>
+                            <div style="color: #6c757d; font-size: 12px; margin-top: 5px;">
+                                用于登录路由器系统后台
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="serial_baudrate">波特率</label>
+                            <select id="serial_baudrate" v-model="routerConfig.serial_baudrate">
+                                <option value="9600">9600</option>
+                                <option value="19200">19200</option>
+                                <option value="38400">38400</option>
+                                <option value="57600">57600</option>
+                                <option value="115200" selected>115200</option>
+                                <option value="230400">230400</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="industrial_serial_port">工业串口485</label>
+                            <select id="industrial_serial_port" v-model="routerConfig.industrial_serial_port">
+                                <option value="" disabled>请选择工业串口</option>
+                                <option v-for="port in availableSerialPorts" :key="'ind_' + port.device" :value="port.device">
+                                    {{ port.device }} - {{ port.description }}
+                                </option>
+                                <option v-if="availableSerialPorts.length === 0 && !isLoadingPorts" value="COM4">
+                                    COM4 (默认)
+                                </option>
+                            </select>
+                            <div style="color: #6c757d; font-size: 12px; margin-top: 5px;">
+                                用于pyserial测试的工业串口通信
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试服务器配置 -->
+        <div class="section">
+            <div class="section-title">
+                <i class="fas fa-server"></i>
+                <h2>测试服务器配置</h2>
+            </div>
+
+            <!-- MQTT配置 -->
+            <div class="config-group mqtt-config-group">
+                <div class="config-group-title">
+                    <i class="fas fa-network-wired"></i>
+                    <span>MQTT服务器配置</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mqtt_broker">MQTT服务器IP</label>
+                        <input type="text" id="mqtt_broker" v-model="serverConfig.mqtt_broker" placeholder="192.168.50.36">
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt_port">MQTT端口</label>
+                        <input type="number" id="mqtt_port" v-model="serverConfig.mqtt_port" min="1" max="65535" placeholder="1883">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mqtt_username">用户名</label>
+                        <input type="text" id="mqtt_username" v-model="serverConfig.mqtt_username" placeholder="admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt_password">密码</label>
+                        <input type="text" id="mqtt_password" v-model="serverConfig.mqtt_password" placeholder="password">
+                    </div>
+                </div>
+                <div style="color: #6c757d; font-size: 12px; margin-top: 10px;">
+                    <i class="fas fa-info-circle"></i> 用于MQTT测试和路由器MQTT功能验证
+                </div>
+            </div>
+
+            <!-- Modbus配置 -->
+            <div class="config-group modbus-config-group">
+                <div class="config-group-title">
+                    <i class="fas fa-cogs"></i>
+                    <span>Modbus服务器配置</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="modbus_server_ip">Modbus Server IP (PC IP)</label>
+                        <input type="text" id="modbus_server_ip" v-model="serverConfig.modbus_server_ip" placeholder="192.168.50.108">
+                    </div>
+                    <div class="form-group">
+                        <label for="modbus_port">Modbus端口</label>
+                        <input type="number" id="modbus_port" v-model="serverConfig.modbus_port" min="1" max="65535" placeholder="5020">
+                    </div>
+                </div>
+                <div style="color: #6c757d; font-size: 12px; margin-top: 10px;">
+                    <i class="fas fa-info-circle"></i> 用于pymodbus测试，PC端作为Modbus从站
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试配置 -->
+        <div class="section">
+            <div class="section-title">
+                <i class="fas fa-cogs"></i>
+                <h2>测试配置</h2>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="test_mode">测试模式</label>
+                    <select id="test_mode" v-model="testMode" @change="loadTestCases">
+                        <option value="regression">回归测试</option>
+                        <option value="all">全部测试</option>
+                        <option value="specific">指定测试</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="timeout">测试超时(秒)</label>
+                    <input type="number" id="timeout" v-model="testConfig.timeout" min="30" max="600">
+                </div>
+                <div class="form-group">
+                    <label for="restore_default">测试后恢复默认</label>
+                    <select id="restore_default" v-model="testConfig.restore_default">
+                        <option value="true">是</option>
+                        <option value="false">否</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div v-if="testMode === 'specific'" class="form-group">
+                <label>选择测试用例:</label>
+                
+                <!-- 筛选区域 -->
+                <div class="filter-section">
+                    <input type="text" class="filter-input" v-model="testCaseFilter" placeholder="搜索测试用例...">
+                    <select class="filter-select" v-model="categoryFilter">
+                        <option value="">所有分类</option>
+                        <option v-for="category in availableCategories" :value="category">{{ category }}</option>
+                    </select>
+                    <select class="filter-select" v-model="typeFilter">
+                        <option value="">所有类型</option>
+                        <option value="regression">回归测试</option>
+                        <option value="functional">功能测试</option>
+                    </select>
+                </div>
+                
+                <!-- 树形结构显示测试用例 -->
+                <div class="test-case-tree">
+                    <!-- 第一级：功能用例、稳定性用例 -->
+                    <div class="tree-node" v-for="node in testTree" :key="node.path">
+                        <div class="tree-node-header" @click="toggleNode(node)">
+                            <span class="tree-node-icon">
+                                <i class="fas" :class="node.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                            </span>
+                            <span class="tree-node-title">{{ node.name }}</span>
+                            <span class="tree-node-count" v-if="node.testCasesCount > 0">{{ node.testCasesCount }}</span>
+                        </div>
+                        
+                        <!-- 第二级：状态、网络、系统、服务、维护、APP（属于功能用例） -->
+                        <div class="tree-node-children" v-if="node.expanded && node.children && node.children.length > 0">
+                            <div class="tree-node" v-for="child in node.children" :key="child.path">
+                                <div class="tree-node-header" @click="toggleNode(child)">
+                                    <span class="tree-node-icon">
+                                        <i class="fas" :class="child.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                                    </span>
+                                    <span class="tree-node-title">{{ child.name }}</span>
+                                    <span class="tree-node-count" v-if="child.testCasesCount > 0">{{ child.testCasesCount }}</span>
+                                </div>
+                                
+                                <!-- 第三级：接口、DHCP、防火墙等（属于网络） -->
+                                <!-- 常规、电话&短信、用户管理等（属于系统） -->
+                                <!-- IO、串口、Modbus Server等（属于服务） -->
+                                <!-- 工具、调试、日志等（属于维护） -->
+                                <!-- python（属于APP） -->
+                                <div class="tree-node-children" v-if="child.expanded && child.children && child.children.length > 0">
+                                    <div class="tree-node" v-for="grandchild in child.children" :key="grandchild.path">
+                                        <div class="tree-node-header" @click="toggleNode(grandchild)">
+                                            <span class="tree-node-icon">
+                                                <i class="fas" :class="grandchild.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                                            </span>
+                                            <span class="tree-node-title">{{ grandchild.name }}</span>
+                                            <span class="tree-node-count" v-if="grandchild.testCasesCount > 0">{{ grandchild.testCasesCount }}</span>
+                                        </div>
+                                        
+                                        <!-- 第四级：链路备份、蜂窝网络等（属于接口） -->
+                                        <div class="tree-node-children" v-if="grandchild.expanded && grandchild.children && grandchild.children.length > 0">
+                                            <div class="tree-node" v-for="greatGrandchild in grandchild.children" :key="greatGrandchild.path">
+                                                <div class="tree-node-header" @click="toggleNode(greatGrandchild)">
+                                                    <span class="tree-node-icon">
+                                                        <i class="fas" :class="greatGrandchild.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                                                    </span>
+                                                    <span class="tree-node-title">{{ greatGrandchild.name }}</span>
+                                                    <span class="tree-node-count" v-if="greatGrandchild.testCasesCount > 0">{{ greatGrandchild.testCasesCount }}</span>
+                                                </div>
+                                                
+                                                <!-- 测试用例显示（使用对齐样式） -->
+                                                <div class="tree-node-children" v-if="greatGrandchild.expanded && greatGrandchild.testCases && greatGrandchild.testCases.length > 0">
+                                                    <div v-for="testCase in greatGrandchild.testCases" :key="testCase.class_name" class="test-case-item-aligned">
+                                                        <label :for="testCase.class_name" class="test-case-name">
+                                                            {{ testCase.name }}
+                                                            <span v-if="testCase.is_regression" class="regression-tag">回归</span>
+                                                            <span class="category-tag">{{ testCase.category }}</span>
+                                                        </label>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            class="test-case-checkbox" 
+                                                            :id="testCase.class_name" 
+                                                            :value="testCase.class_name" 
+                                                            v-model="selectedCases">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 测试用例显示（使用对齐样式） -->
+                                        <div class="tree-node-children" v-else-if="grandchild.expanded && grandchild.testCases && grandchild.testCases.length > 0">
+                                            <div v-for="testCase in grandchild.testCases" :key="testCase.class_name" class="test-case-item-aligned">
+                                                <label :for="testCase.class_name" class="test-case-name">
+                                                    {{ testCase.name }}
+                                                    <span v-if="testCase.is_regression" class="regression-tag">回归</span>
+                                                    <span class="category-tag">{{ testCase.category }}</span>
+                                                </label>
+                                                <input 
+                                                    type="checkbox" 
+                                                    class="test-case-checkbox" 
+                                                    :id="testCase.class_name" 
+                                                    :value="testCase.class_name" 
+                                                    v-model="selectedCases">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 测试用例显示（使用对齐样式） -->
+                                <div class="tree-node-children" v-else-if="child.expanded && child.testCases && child.testCases.length > 0">
+                                    <div v-for="testCase in child.testCases" :key="testCase.class_name" class="test-case-item-aligned">
+                                        <label :for="testCase.class_name" class="test-case-name">
+                                            {{ testCase.name }}
+                                            <span v-if="testCase.is_regression" class="regression-tag">回归</span>
+                                            <span class="category-tag">{{ testCase.category }}</span>
+                                        </label>
+                                        <input 
+                                            type="checkbox" 
+                                            class="test-case-checkbox" 
+                                            :id="testCase.class_name" 
+                                            :value="testCase.class_name" 
+                                            v-model="selectedCases">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 测试用例显示（使用对齐样式） -->
+                        <div class="tree-node-children" v-else-if="node.expanded && node.testCases && node.testCases.length > 0">
+                            <div v-for="testCase in node.testCases" :key="testCase.class_name" class="test-case-item-aligned">
+                                <label :for="testCase.class_name" class="test-case-name">
+                                    {{ testCase.name }}
+                                    <span v-if="testCase.is_regression" class="regression-tag">回归</span>
+                                    <span class="category-tag">{{ testCase.category }}</span>
+                                </label>
+                                <input 
+                                    type="checkbox" 
+                                    class="test-case-checkbox" 
+                                    :id="testCase.class_name" 
+                                    :value="testCase.class_name" 
+                                    v-model="selectedCases">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 选择信息 -->
+                <div class="selection-info">
+                    已选择 {{ selectedCases.length }} 个测试用例
+                    <button class="btn btn-secondary" @click="selectAll" style="margin-left: 10px; padding: 5px 10px;">
+                        <i class="fas fa-check-square"></i> 全选
+                    </button>
+                    <button class="btn btn-secondary" @click="clearSelection" style="margin-left: 5px; padding: 5px 10px;">
+                        <i class="fas fa-times-circle"></i> 清空
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 执行控制 -->
+        <div class="section">
+            <div class="control-section">
+                <div>
+                    <button class="btn btn-primary" @click="runTests" :disabled="isTesting">
+                        <i class="fas fa-play" v-if="!isTesting"></i>
+                        <i class="fas fa-spinner fa-spin" v-else></i>
+                        {{ isTesting ? '测试执行中...' : '开始测试' }}
+                    </button>
+                    <button class="btn btn-secondary" @click="saveConfig" :disabled="isTesting">
+                        <i class="fas fa-save"></i> 保存配置
+                    </button>
+                </div>
+                
+                <div class="progress-container" v-if="isTesting">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>测试进度</span>
+                        <span>{{ progress }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="{width: progress + '%'}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实时日志 -->
+        <div v-if="isTesting" class="section">
+            <div class="section-title">
+                <i class="fas fa-terminal"></i>
+                <h2>实时日志</h2>
+            </div>
+            <div class="log-controls">
+                <button class="log-control-btn" @click="clearLogs">
+                    <i class="fas fa-trash"></i> 清空日志
+                </button>
+                <button class="log-control-btn" @click="scrollToBottom">
+                    <i class="fas fa-arrow-down"></i> 滚动到底部
+                </button>
+                <span style="margin-left: auto; color: #6c757d; font-size: 12px;">
+                    日志数量: {{ realTimeLogs.length }}
+                </span>
+            </div>
+            <div id="logContainer" class="log-container">
+                <div v-for="(log, index) in realTimeLogs" :key="'log-' + index" class="log-line" :class="'log-' + (log.level ? log.level.toLowerCase() : 'info')">
+                    {{ log.full_message || log.message }}
+                </div>
+                <div v-if="realTimeLogs.length === 0" class="no-logs">
+                    等待日志输出...
+                </div>
+                <div v-if="realTimeLogs.length > 0" style="color: #888; font-size: 11px; margin-top: 10px; text-align: right;">
+                    共 {{ realTimeLogs.length }} 条日志
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试结果 -->
+        <div v-if="testResult" class="section">
+            <div class="section-title">
+                <i class="fas fa-chart-bar"></i>
+                <h2>测试结果</h2>
+            </div>
+            
+            <div class="result-overview">
+                <div class="result-item">
+                    <div class="result-value" :class="getResultClass(testResult.overall_result)">
+                        {{ testResult.overall_result }}
+                    </div>
+                    <div class="result-label">总体结果</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-value">{{ testResult.summary.total }}</div>
+                    <div class="result-label">总用例数</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-value result-pass">{{ testResult.summary.passed }}</div>
+                    <div class="result-label">通过</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-value result-fail">{{ testResult.summary.failed + testResult.summary.error }}</div>
+                    <div class="result-label">失败</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-value">{{ testResult.summary.duration }}s</div>
+                    <div class="result-label">测试耗时</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-bottom: 15px;">详细结果:</h3>
+            <div class="test-details">
+                <div v-for="(detail, index) in testResult.details" :key="index" 
+                     class="test-case" :class="getTestClass(detail.status)">
+                    <div class="test-header">
+                        <div class="test-name">{{ detail.test_name }}</div>
+                        <div class="test-status" :class="getResultClass(detail.status)">
+                            {{ detail.status === 'PASS' ? '通过' : (detail.status === 'FAIL' ? '失败' : '错误') }}
+                        </div>
+                    </div>
+                    <div v-if="detail.status !== 'PASS'" style="color: #dc3545; margin-top: 5px;">
+                        {{ detail.message }}
+                    </div>
+                    <div style="margin-top: 5px; color: #666;">
+                        耗时: {{ detail.duration }}秒
+                    </div>
+                    <button class="expand-btn" @click="toggleLog(index)">
+                        <i class="fas" :class="detail.showLog ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                        {{ detail.showLog ? '收起日志' : '查看日志' }}
+                    </button>
+                    <div v-if="detail.showLog" class="test-log">
+                        {{ detail.message || '暂无详细日志' }}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-secondary" @click="exportReport">
+                    <i class="fas fa-download"></i> 导出报告
+                </button>
+                <button class="btn btn-secondary" @click="clearResults">
+                    <i class="fas fa-trash"></i> 清除结果
+                </button>
+            </div>
+        </div>
+
+        <!-- 无结果状态 -->
+        <div v-if="!testResult && !isTesting" class="section">
+            <div class="no-results">
+                <i class="fas fa-clipboard-list"></i>
+                <h3>暂无测试结果</h3>
+                <p>配置路由器信息并开始测试以查看结果</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                routerConfig: {
+                    router_ip: '192.168.1.1',
+                    username: 'admin',
+                    password: 'admin',
+                    model: 'UR35',
+                    serial_number: '',
+                    firmware_version: '',
+                    hardware_version: '',
+                    module_type: 'auto',
+                    module_model: '',
+                    module_version: '',
+                    sim_operator: '',
+                    serial_port: 'COM3',
+                    serial_baudrate: 115200,
+                    industrial_serial_port: 'COM4'
+                },
+                serverConfig: {
+                    mqtt_broker: '192.168.50.36',
+                    mqtt_port: 1883,
+                    mqtt_username: 'admin',
+                    mqtt_password: 'password',
+                    modbus_server_ip: '192.168.50.108',
+                    modbus_port: 5020
+                },
+                testConfig: {
+                    timeout: 300,
+                    restore_default: 'true'
+                },
+                testMode: 'regression',
+                testCases: [],
+                selectedCases: [],
+                isTesting: false,
+                testResult: null,
+                progress: 0,
+                realTimeLogs: [],
+                lastTestTime: '从未测试',
+                testCaseFilter: '',
+                categoryFilter: '',
+                typeFilter: '',
+                availableCategories: [],
+                testTree: [],
+                // 新增数据
+                isRefreshing: false,
+                lastRefreshTime: null,
+                autoRefreshInterval: null,
+                eventSource: null,
+                // 串口管理
+                availableSerialPorts: [],
+                isLoadingPorts: false,
+                serialPortError: ''
+            },
+            methods: {
+                loadTestCases: function() {
+                    var regressionOnly = this.testMode === 'regression';
+                    var self = this;
+                    
+                    // 从后端API获取测试用例
+                    axios.get('/api/test-cases', {
+                        params: {
+                            regression_only: regressionOnly
+                        }
+                    }).then(function(response) {
+                        self.testCases = response.data;
+                        
+                        // 提取所有可用的分类
+                        self.availableCategories = [...new Set(self.testCases.map(tc => tc.category))].filter(Boolean);
+                        
+                        // 构建测试用例树
+                        self.buildTestTree();
+                        
+                        if (self.testMode === 'regression') {
+                            self.selectedCases = self.testCases
+                                .filter(tc => tc.is_regression)
+                                .map(tc => tc.class_name);
+                        } else if (self.testMode === 'all') {
+                            self.selectedCases = self.testCases.map(tc => tc.class_name);
+                        }
+                    }).catch(function(error) {
+                        console.error('获取测试用例失败:', error);
+                        alert('获取测试用例失败: ' + error.message);
+                    });
+                },
+                
+                // 新增：刷新测试用例方法
+                refreshTestCases: function() {
+                    var self = this;
+                    self.isRefreshing = true;
+                    
+                    console.log("开始刷新测试用例...");
+                    
+                    // 调用后端刷新接口
+                    axios.post('/api/refresh-test-cases')
+                        .then(function(response) {
+                            self.testCases = response.data;
+                            
+                            // 提取所有可用的分类
+                            self.availableCategories = [...new Set(self.testCases.map(tc => tc.category))].filter(Boolean);
+                            
+                            // 重新构建测试用例树
+                            self.buildTestTree();
+                            
+                            // 更新选择状态
+                            if (self.testMode === 'regression') {
+                                self.selectedCases = self.testCases
+                                    .filter(tc => tc.is_regression)
+                                    .map(tc => tc.class_name);
+                            } else if (self.testMode === 'all') {
+                                self.selectedCases = self.testCases.map(tc => tc.class_name);
+                            }
+                            
+                            // 更新最后刷新时间
+                            self.lastRefreshTime = new Date().toLocaleString();
+                            
+                            console.log(`测试用例刷新完成，共发现 ${self.testCases.length} 个用例`);
+                            
+                            // 显示刷新成功提示
+                            self.showNotification('测试用例刷新成功', 'success');
+                        })
+                        .catch(function(error) {
+                            console.error('刷新测试用例失败:', error);
+                            self.showNotification('刷新测试用例失败: ' + error.message, 'error');
+                        })
+                        .finally(function() {
+                            self.isRefreshing = false;
+                        });
+                },
+                
+                // 新增：显示通知
+                showNotification: function(message, type) {
+                    // 创建通知元素
+                    var notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        padding: 15px 20px;
+                        border-radius: 6px;
+                        color: white;
+                        font-weight: 600;
+                        z-index: 10000;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                        transition: all 0.3s ease;
+                        max-width: 300px;
+                    `;
+                    
+                    if (type === 'success') {
+                        notification.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                    } else if (type === 'error') {
+                        notification.style.background = 'linear-gradient(135deg, #dc3545 0%, #e83e8c 100%)';
+                    } else {
+                        notification.style.background = 'linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%)';
+                    }
+                    
+                    notification.textContent = message;
+                    document.body.appendChild(notification);
+                    
+                    // 3秒后自动移除
+                    setTimeout(function() {
+                        notification.style.opacity = '0';
+                        notification.style.transform = 'translateX(100%)';
+                        setTimeout(function() {
+                            if (notification.parentNode) {
+                                notification.parentNode.removeChild(notification);
+                            }
+                        }, 300);
+                    }, 3000);
+                },
+                
+                // 新增：自动刷新测试用例（可选功能）
+                startAutoRefresh: function() {
+                    var self = this;
+                    // 每5分钟自动刷新一次（可根据需要调整）
+                    this.autoRefreshInterval = setInterval(function() {
+                        console.log("自动刷新测试用例...");
+                        self.refreshTestCases();
+                    }, 5 * 60 * 1000); // 5分钟
+                },
+                
+                // 新增：停止自动刷新
+                stopAutoRefresh: function() {
+                    if (this.autoRefreshInterval) {
+                        clearInterval(this.autoRefreshInterval);
+                        this.autoRefreshInterval = null;
+                    }
+                },
+                
+                // 新增：清空日志
+                clearLogs: function() {
+                    this.realTimeLogs = [];
+                },
+                
+                // 新增：滚动到底部
+                scrollToBottom: function() {
+                    const logContainer = document.getElementById('logContainer');
+                    if (logContainer) {
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    }
+                },
+
+                // 新增：加载可用串口列表
+                loadSerialPorts: function() {
+                    var self = this;
+                    self.isLoadingPorts = true;
+                    self.serialPortError = '';
+
+                    console.log("正在检测可用串口...");
+
+                    axios.get('/api/serial-ports')
+                        .then(function(response) {
+                            self.availableSerialPorts = response.data;
+                            console.log(`检测到 ${self.availableSerialPorts.length} 个串口设备`);
+
+                            // 如果当前选择的串口不在列表中，且列表不为空，则选择第一个
+                            if (self.availableSerialPorts.length > 0) {
+                                var currentPortExists = self.availableSerialPorts.some(function(port) {
+                                    return port.device === self.routerConfig.serial_port;
+                                });
+
+                                if (!currentPortExists) {
+                                    self.routerConfig.serial_port = self.availableSerialPorts[0].device;
+                                    console.log(`自动选择串口: ${self.routerConfig.serial_port}`);
+                                }
+                            }
+
+                            if (self.availableSerialPorts.length === 0) {
+                                self.serialPortError = '未检测到可用串口，请检查设备连接';
+                                console.warn('未检测到任何串口设备');
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error('获取串口列表失败:', error);
+                            self.serialPortError = '获取串口列表失败: ' + error.message;
+                            self.showNotification('获取串口列表失败', 'error');
+                        })
+                        .finally(function() {
+                            self.isLoadingPorts = false;
+                        });
+                },
+
+                // 构建测试用例树形结构 - 确保层级正确
+                buildTestTree: function() {
+                    // 按照您提供的完整目录结构构建树
+                    const treeStructure = [
+                        {
+                            name: '功能用例',
+                            path: '功能用例',
+                            expanded: true,
+                            children: [
+                                {
+                                    name: '状态',
+                                    path: '功能用例/状态',
+                                    expanded: false,
+                                    children: [],
+                                    testCases: []
+                                },
+                                {
+                                    name: '网络',
+                                    path: '功能用例/网络',
+                                    expanded: false,
+                                    children: [
+                                        {
+                                            name: '接口',
+                                            path: '功能用例/网络/接口',
+                                            expanded: false,
+                                            children: [
+                                                { name: '链路备份', path: '功能用例/网络/接口/链路备份', expanded: false, children: [], testCases: [] },
+                                                { name: '蜂窝网络', path: '功能用例/网络/接口/蜂窝网络', expanded: false, children: [], testCases: [] },
+                                                { name: '端口', path: '功能用例/网络/接口/端口', expanded: false, children: [], testCases: [] },
+                                                { name: '广域网', path: '功能用例/网络/接口/广域网', expanded: false, children: [], testCases: [] },
+                                                { name: '网桥', path: '功能用例/网络/接口/网桥', expanded: false, children: [], testCases: [] },
+                                                { name: 'WLAN', path: '功能用例/网络/接口/WLAN', expanded: false, children: [], testCases: [] },
+                                                { name: '交换机', path: '功能用例/网络/接口/交换机', expanded: false, children: [], testCases: [] },
+                                                { name: '环回', path: '功能用例/网络/接口/环回', expanded: false, children: [], testCases: [] }
+                                            ],
+                                            testCases: []
+                                        },
+                                        { name: 'DHCP', path: '功能用例/网络/DHCP', expanded: false, children: [], testCases: [] },
+                                        { name: '防火墙', path: '功能用例/网络/防火墙', expanded: false, children: [], testCases: [] },
+                                        { name: '流量控制', path: '功能用例/网络/流量控制', expanded: false, children: [], testCases: [] },
+                                        { name: 'VPN', path: '功能用例/网络/VPN', expanded: false, children: [], testCases: [] },
+                                        { name: 'IP穿透', path: '功能用例/网络/IP穿透', expanded: false, children: [], testCases: [] },
+                                        { name: '路由', path: '功能用例/网络/路由', expanded: false, children: [], testCases: [] },
+                                        { name: 'VRRP', path: '功能用例/网络/VRRP', expanded: false, children: [], testCases: [] },
+                                        { name: 'DDNS', path: '功能用例/网络/DDNS', expanded: false, children: [], testCases: [] }
+                                    ],
+                                    testCases: []
+                                },
+                                {
+                                    name: '系统',
+                                    path: '功能用例/系统',
+                                    expanded: false,
+                                    children: [
+                                        { name: '常规', path: '功能用例/系统/常规', expanded: false, children: [], testCases: [] },
+                                        { name: '电话&短信', path: '功能用例/系统/电话&短信', expanded: false, children: [], testCases: [] },
+                                        { name: '用户管理', path: '功能用例/系统/用户管理', expanded: false, children: [], testCases: [] },
+                                        { name: 'AAA', path: '功能用例/系统/AAA', expanded: false, children: [], testCases: [] },
+                                        { name: '设备管理', path: '功能用例/系统/设备管理', expanded: false, children: [], testCases: [] },
+                                        { name: '事件', path: '功能用例/系统/事件', expanded: false, children: [], testCases: [] }
+                                    ],
+                                    testCases: []
+                                },
+                                {
+                                    name: '服务',
+                                    path: '功能用例/服务',
+                                    expanded: false,
+                                    children: [
+                                        { name: 'IO', path: '功能用例/服务/IO', expanded: false, children: [], testCases: [] },
+                                        { name: '串口', path: '功能用例/服务/串口', expanded: false, children: [], testCases: [] },
+                                        { name: 'Modbus Server', path: '功能用例/服务/Modbus Server', expanded: false, children: [], testCases: [] },
+                                        { name: 'Modbus Client', path: '功能用例/服务/Modbus Client', expanded: false, children: [], testCases: [] },
+                                        { name: 'MQTT', path: '功能用例/服务/MQTT', expanded: false, children: [], testCases: [] },
+                                        { name: 'SNMP', path: '功能用例/服务/SNMP', expanded: false, children: [], testCases: [] },
+                                        { name: 'TR069', path: '功能用例/服务/TR069', expanded: false, children: [], testCases: [] }
+                                    ],
+                                    testCases: []
+                                },
+                                {
+                                    name: '维护',
+                                    path: '功能用例/维护',
+                                    expanded: false,
+                                    children: [
+                                        { name: '工具', path: '功能用例/维护/工具', expanded: false, children: [], testCases: [] },
+                                        { name: '调试', path: '功能用例/维护/调试', expanded: false, children: [], testCases: [] },
+                                        { name: '日志', path: '功能用例/维护/日志', expanded: false, children: [], testCases: [] },
+                                        { name: '升级', path: '功能用例/维护/升级', expanded: false, children: [], testCases: [] },
+                                        { name: '备份与还原', path: '功能用例/维护/备份与还原', expanded: false, children: [], testCases: [] },
+                                        { name: '重启', path: '功能用例/维护/重启', expanded: false, children: [], testCases: [] }
+                                    ],
+                                    testCases: []
+                                },
+                                {
+                                    name: 'APP',
+                                    path: '功能用例/APP',
+                                    expanded: false,
+                                    children: [
+                                        { name: 'python', path: '功能用例/APP/python', expanded: false, children: [], testCases: [] }
+                                    ],
+                                    testCases: []
+                                }
+                            ],
+                            testCases: []
+                        },
+                        {
+                            name: '稳定性用例',
+                            path: '稳定性用例',
+                            expanded: false,
+                            children: [],
+                            testCases: []
+                        }
+                    ];
+
+                    // 将测试用例分配到对应的分类中
+                    this.distributeTestCases(treeStructure);
+                    
+                    // 计算每个节点的测试用例数量
+                    this.calculateTestCaseCounts(treeStructure);
+                    
+                    this.testTree = treeStructure;
+                },
+                // 将测试用例分配到树形结构中
+                distributeTestCases: function(treeNodes) {
+                    treeNodes.forEach(node => {
+                        // 查找属于这个分类的测试用例
+                        node.testCases = this.testCases.filter(tc => tc.category === node.path);
+                        
+                        // 递归处理子节点
+                        if (node.children && node.children.length > 0) {
+                            this.distributeTestCases(node.children);
+                        }
+                    });
+                },
+                // 计算每个节点的测试用例数量
+                calculateTestCaseCounts: function(treeNodes) {
+                    treeNodes.forEach(node => {
+                        // 当前节点的测试用例数量
+                        let count = node.testCases ? node.testCases.length : 0;
+                        
+                        // 递归计算子节点的测试用例数量
+                        if (node.children && node.children.length > 0) {
+                            this.calculateTestCaseCounts(node.children);
+                            count += node.children.reduce((sum, child) => sum + (child.testCasesCount || 0), 0);
+                        }
+                        
+                        // 设置测试用例数量
+                        node.testCasesCount = count;
+                    });
+                },
+                toggleNode: function(node) {
+                    node.expanded = !node.expanded;
+                },
+                selectAll: function() {
+                    this.selectedCases = this.testCases.map(tc => tc.class_name);
+                },
+                clearSelection: function() {
+                    this.selectedCases = [];
+                },
+                runTests: function() {
+                    this.isTesting = true;
+                    this.testResult = null;
+                    this.progress = 0;
+                    this.realTimeLogs = [];
+
+                    var self = this;
+                    var requestData = {
+                        router_ip: this.routerConfig.router_ip,
+                        username: this.routerConfig.username,
+                        password: this.routerConfig.password,
+                        model: this.routerConfig.model,
+                        serial_number: this.routerConfig.serial_number,
+                        firmware_version: this.routerConfig.firmware_version,
+                        hardware_version: this.routerConfig.hardware_version,
+                        module_type: this.routerConfig.module_type,
+                        module_model: this.routerConfig.module_model,
+                        module_version: this.routerConfig.module_version,
+                        sim_operator: this.routerConfig.sim_operator,
+                        serial_port: this.routerConfig.serial_port,
+                        serial_baudrate: this.routerConfig.serial_baudrate,
+                        industrial_serial_port: this.routerConfig.industrial_serial_port,
+                        mqtt_broker: this.serverConfig.mqtt_broker,
+                        mqtt_port: this.serverConfig.mqtt_port,
+                        modbus_server_ip: this.serverConfig.modbus_server_ip,
+                        modbus_port: this.serverConfig.modbus_port,
+                        test_mode: this.testMode,
+                        selected_cases: this.selectedCases,
+                        timeout: this.testConfig.timeout,
+                        restore_default: this.testConfig.restore_default === 'true'
+                    };
+
+                    // 使用新的流式接口执行测试
+                    this.runTestsWithRealTimeLogs(requestData);
+                },
+                
+                // 新增：使用实时日志流执行测试
+                runTestsWithRealTimeLogs: function(requestData) {
+                    var self = this;
+
+                    // 第一步：发送 POST 请求保存测试配置
+                    axios.post('/api/start-test-stream', requestData, {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }).then(function(response) {
+                        console.log('测试配置已保存:', response.data);
+
+                        // 第二步：创建 EventSource 连接获取实时日志
+                        self.eventSource = new EventSource('/api/run-tests-stream');
+
+                        // 监听实时日志
+                        self.eventSource.onmessage = function(event) {
+                            var data = JSON.parse(event.data);
+
+                            switch(data.type) {
+                                case 'start':
+                                    self.showNotification('测试开始执行', 'info');
+                                    break;
+                                case 'log':
+                                    // 添加日志到实时日志列表
+                                    self.realTimeLogs.push(data.data);
+                                    // 自动滚动到底部
+                                    setTimeout(function() {
+                                        self.scrollToBottom();
+                                    }, 100);
+                                    break;
+                                case 'progress':
+                                    // 更新进度条
+                                    self.progress = data.progress;
+                                    console.log('进度更新: ' + data.completed + '/' + data.total + ' (' + data.progress + '%)');
+                                    break;
+                                case 'result':
+                                    // 测试完成，显示结果
+                                    self.testResult = data.data;
+                                    self.progress = 100;
+                                    self.lastTestTime = new Date().toLocaleString();
+                                    self.isTesting = false;
+
+                                    // 为每个测试结果添加日志显示控制
+                                    if (self.testResult && self.testResult.details) {
+                                        self.testResult.details.forEach(function(detail) {
+                                            Vue.set(detail, 'showLog', false);
+                                        });
+                                    }
+
+                                    // 关闭 EventSource 连接
+                                    if (self.eventSource) {
+                                        self.eventSource.close();
+                                        self.eventSource = null;
+                                    }
+
+                                    // 显示测试完成通知
+                                    if (self.testResult.overall_result === 'PASS') {
+                                        self.showNotification('测试执行完成 - 全部通过', 'success');
+                                    } else {
+                                        self.showNotification('测试执行完成 - 存在失败用例', 'error');
+                                    }
+                                    break;
+                                case 'error':
+                                    // 测试出错
+                                    self.isTesting = false;
+                                    self.showNotification('测试执行出错: ' + data.message, 'error');
+
+                                    // 关闭 EventSource 连接
+                                    if (self.eventSource) {
+                                        self.eventSource.close();
+                                        self.eventSource = null;
+                                    }
+                                    break;
+                                case 'heartbeat':
+                                    // 心跳包，不做处理
+                                    console.log('收到心跳包:', data.timestamp);
+                                    break;
+                            }
+                        };
+
+                        self.eventSource.onerror = function(event) {
+                            console.error('EventSource 连接错误:', event);
+                            self.isTesting = false;
+                            self.showNotification('实时日志连接错误', 'error');
+
+                            // 关闭 EventSource 连接
+                            if (self.eventSource) {
+                                self.eventSource.close();
+                                self.eventSource = null;
+                            }
+                        };
+
+                    }).catch(function(error) {
+                        console.error('启动测试失败:', error);
+                        self.isTesting = false;
+                        self.showNotification('启动测试失败: ' + error.message, 'error');
+                    });
+                },
+                getResultClass: function(result) {
+                    if (result === 'PASS') return 'result-pass';
+                    if (result === 'FAIL') return 'result-fail';
+                    if (result === 'ERROR') return 'result-error';
+                    if (result === 'RUNNING') return 'result-running';
+                    return '';
+                },
+                getTestClass: function(result) {
+                    if (result === 'PASS') return 'pass';
+                    if (result === 'FAIL' || result === 'ERROR') return 'fail';
+                    if (result === 'RUNNING') return 'running';
+                    return '';
+                },
+                toggleLog: function(index) {
+                    if (this.testResult && this.testResult.details) {
+                        Vue.set(this.testResult.details[index], 'showLog', 
+                               !this.testResult.details[index].showLog);
+                    }
+                },
+                saveConfig: function() {
+                    localStorage.setItem('routerConfig', JSON.stringify(this.routerConfig));
+                    localStorage.setItem('testConfig', JSON.stringify(this.testConfig));
+                    localStorage.setItem('testMode', this.testMode);
+                    localStorage.setItem('selectedCases', JSON.stringify(this.selectedCases));
+                    
+                    alert('配置已保存到本地存储');
+                },
+                loadConfig: function() {
+                    var savedRouterConfig = localStorage.getItem('routerConfig');
+                    var savedTestConfig = localStorage.getItem('testConfig');
+                    var savedTestMode = localStorage.getItem('testMode');
+                    var savedSelectedCases = localStorage.getItem('selectedCases');
+                    
+                    if (savedRouterConfig) {
+                        this.routerConfig = JSON.parse(savedRouterConfig);
+                    }
+                    if (savedTestConfig) {
+                        this.testConfig = JSON.parse(savedTestConfig);
+                    }
+                    if (savedTestMode) {
+                        this.testMode = savedTestMode;
+                    }
+                    if (savedSelectedCases) {
+                        this.selectedCases = JSON.parse(savedSelectedCases);
+                    }
+                },
+                exportReport: function() {
+                    if (!this.testResult) {
+                        alert('没有测试结果可导出');
+                        return;
+                    }
+
+                    var self = this;
+
+                    // 准备导出数据
+                    var exportData = {
+                        results: this.testResult.details,  // 测试详细结果
+                        config: {
+                            routerIp: this.routerConfig.routerIp,
+                            model: this.routerConfig.model,
+                            username: this.routerConfig.username
+                        },
+                        summary: {
+                            total: this.testResult.summary.total,
+                            passed: this.testResult.summary.passed,
+                            failed: this.testResult.summary.failed,
+                            error: this.testResult.summary.error,
+                            duration: this.testResult.summary.duration,
+                            overall_result: this.testResult.overall_result
+                        }
+                    };
+
+                    // 调用后端API生成Excel
+                    fetch('/api/export-report', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(exportData)
+                    })
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('导出失败');
+                        }
+                        return response.blob();
+                    })
+                    .then(function(blob) {
+                        // 创建下载链接
+                        var url = window.URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        a.download = '测试报告_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        alert('测试报告已成功导出为Excel文件');
+                    })
+                    .catch(function(error) {
+                        console.error('导出报告失败:', error);
+                        alert('导出报告失败: ' + error.message);
+                    });
+                },
+                clearResults: function() {
+                    this.testResult = null;
+                }
+            },
+            mounted: function() {
+                this.loadConfig();
+                this.loadTestCases();
+                this.loadSerialPorts();  // 加载可用串口列表
+
+                // 设置最后测试时间
+                var lastTest = localStorage.getItem('lastTestTime');
+                if (lastTest) {
+                    this.lastTestTime = lastTest;
+                }
+
+                // 设置最后刷新时间
+                var lastRefresh = localStorage.getItem('lastRefreshTime');
+                if (lastRefresh) {
+                    this.lastRefreshTime = lastRefresh;
+                }
+
+                // 启动自动刷新（可选）
+                // this.startAutoRefresh();
+            },
+            
+            beforeDestroy: function() {
+                // 清理自动刷新定时器
+                this.stopAutoRefresh();
+                
+                // 关闭 EventSource 连接
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
+                
+                // 保存最后刷新时间到本地存储
+                if (this.lastRefreshTime) {
+                    localStorage.setItem('lastRefreshTime', this.lastRefreshTime);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
