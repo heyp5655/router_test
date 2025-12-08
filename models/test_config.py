@@ -24,7 +24,7 @@ class RouterConfig:
     mqtt_port: int = 1883  # MQTT端口
     mqtt_username: str = "admin"  # MQTT用户名
     mqtt_password: str = "password"  # MQTT密码
-    modbus_server_ip: str = "192.168.50.108"  # Modbus Server IP (PC IP)
+    modbus_server_ip: str = "192.168.1.100"  # Modbus Server IP (PC IP，与路由器同网段)
     modbus_port: int = 5020  # Modbus端口
 
 

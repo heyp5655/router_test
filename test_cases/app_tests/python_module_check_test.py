@@ -733,6 +733,9 @@ check(extra, "EXTRA (from doc)")
 
         print("测试清理完成")
 
+        # 调用父类cleanup以关闭浏览器
+        super().cleanup()
+
     # ===== 串口相关方法 =====
 
     def _init_serial_connection(self):

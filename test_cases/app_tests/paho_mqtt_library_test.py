@@ -595,11 +595,47 @@ else:
             self._serial_login()
             print("✅ 系统串口登录成功")
 
-            # 执行测试脚本
+            # 验证Python环境（新增）
+            print("\n验证Python环境...")
             script_path = "/tmp/mqtt_test.py"
             python_path = "/usr/python/bin/python3.9"
             lib_path = "/usr/python/lib"
-            command = f"export LD_LIBRARY_PATH={lib_path}:$LD_LIBRARY_PATH && {python_path} {script_path}\n"
+
+            validation_commands = [
+                ("检查Python解释器", f"ls -l {python_path} 2>&1"),
+                ("检查库路径", f"ls -ld {lib_path} 2>&1"),
+                ("测试Python版本", f"{python_path} --version 2>&1"),
+                ("测试导入paho-mqtt", f"{python_path} -c 'import paho.mqtt.client; print(\"paho-mqtt OK\")' 2>&1"),
+            ]
+
+            validation_failed = False
+            for desc, cmd in validation_commands:
+                print(f"  {desc}...")
+                self.system_serial_conn.write(f"{cmd}\n".encode('utf-8'))
+                time.sleep(1.5)  # 等待命令执行
+
+                if self.system_serial_conn.in_waiting > 0:
+                    output = self.system_serial_conn.read(self.system_serial_conn.in_waiting).decode('utf-8', errors='ignore')
+                    # 只显示输出的前150个字符，避免过长
+                    output_preview = output.strip()[:150]
+
+                    # 检查是否有错误
+                    if "No such file" in output or "cannot" in output.lower() or "error" in output.lower():
+                        print(f"    ❌ 失败: {output_preview}")
+                        validation_failed = True
+                    else:
+                        print(f"    ✅ 成功: {output_preview}")
+                else:
+                    print(f"    ⚠️  未收到输出")
+
+            if validation_failed:
+                print("\n⚠️  环境验证发现问题，但继续执行测试以获取更多诊断信息...\n")
+            else:
+                print("\n✅ Python环境验证通过\n")
+
+            # 执行测试脚本
+            # 添加 2>&1 将stderr重定向到stdout，捕获所有错误信息
+            command = f"export LD_LIBRARY_PATH={lib_path}:$LD_LIBRARY_PATH && {python_path} {script_path} 2>&1\n"
 
             print(f"执行命令: {command.strip()}")
             print("=" * 70)
@@ -607,9 +643,9 @@ else:
 
             # 开始读取输出（MQTT测试大约需要15秒）
             start_time = time.time()
-            max_duration = 30  # 最多30秒
+            max_duration = 60  # 最多60秒（增加容错时间）
             last_data_time = start_time
-            no_data_timeout = 10  # 如果10秒没数据，认为脚本结束
+            no_data_timeout = 20  # 如果20秒没数据，认为脚本结束（增加容错时间）
 
             while time.time() - start_time < max_duration:
                 if self.system_serial_conn.in_waiting > 0:

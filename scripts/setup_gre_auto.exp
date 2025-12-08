@@ -1,0 +1,188 @@
+#!/usr/bin/expect -f
+# GRE隧道配置自动化脚本
+
+set timeout 30
+set password "milesight123"
+
+# 显示开始信息
+puts "\n=========================================="
+puts "开始配置GRE隧道"
+puts "服务器: 192.168.50.48"
+puts "=========================================="
+
+# 连接SSH
+spawn ssh yuxy@192.168.50.48
+
+# 处理SSH密钥确认
+expect {
+    "Are you sure you want to continue connecting" {
+        send "yes\r"
+        expect "password:"
+        send "$password\r"
+    }
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        puts "连接超时"
+        exit 1
+    }
+}
+
+# 等待登录成功
+expect {
+    "*$" { puts "\n✓ SSH登录成功\n" }
+    "*#" { puts "\n✓ SSH登录成功\n" }
+    timeout {
+        puts "登录失败"
+        exit 1
+    }
+}
+
+# 步骤1: 检查当前GRE隧道状态
+puts "=========================================="
+puts "步骤1: 检查当前GRE隧道状态"
+puts "=========================================="
+send "ip addr show gre1 2>&1 | head -5\r"
+expect "*$"
+sleep 1
+
+# 步骤2: 创建永久化配置文件
+puts "\n=========================================="
+puts "步骤2: 创建永久化配置文件"
+puts "=========================================="
+
+send "sudo tee /etc/network/interfaces.d/gre1 > /dev/null << 'EOF'\r"
+expect "password"
+send "$password\r"
+expect "*$"
+
+send "# GRE隧道配置 - DMVPN Hub\r"
+expect "*>"
+send "# 创建时间: 2025-11-26\r"
+expect "*>"
+send "# 本地物理IP: 192.168.50.48\r"
+expect "*>"
+send "# 隧道IP: 10.0.0.1\r"
+expect "*>"
+send "# GRE密钥: 123456\r"
+expect "*>"
+send "\r"
+expect "*>"
+send "auto gre1\r"
+expect "*>"
+send "iface gre1 inet static\r"
+expect "*>"
+send "    address 10.0.0.1\r"
+expect "*>"
+send "    netmask 255.255.255.0\r"
+expect "*>"
+send "    pre-up ip tunnel add gre1 mode gre local 192.168.50.48 key 123456\r"
+expect "*>"
+send "    post-down ip tunnel del gre1\r"
+expect "*>"
+send "EOF\r"
+expect "*$"
+sleep 1
+
+puts "\n✓ 配置文件已创建"
+
+# 步骤3: 验证配置文件
+puts "\n=========================================="
+puts "步骤3: 验证配置文件内容"
+puts "=========================================="
+send "cat /etc/network/interfaces.d/gre1\r"
+expect "*$"
+sleep 1
+
+# 步骤4: 删除现有隧道（如果存在）
+puts "\n=========================================="
+puts "步骤4: 清理现有GRE隧道（如果存在）"
+puts "=========================================="
+send "sudo ip link set gre1 down 2>/dev/null\r"
+expect {
+    "password" {
+        send "$password\r"
+        expect "*$"
+    }
+    "*$" {}
+}
+
+send "sudo ip tunnel del gre1 2>/dev/null\r"
+expect "*$"
+sleep 1
+
+# 步骤5: 创建GRE隧道
+puts "\n=========================================="
+puts "步骤5: 创建并启动GRE隧道"
+puts "=========================================="
+
+send "sudo ip tunnel add gre1 mode gre local 192.168.50.48 key 123456\r"
+expect {
+    "password" {
+        send "$password\r"
+        expect "*$"
+    }
+    "*$" {}
+}
+sleep 1
+
+send "sudo ip addr add 10.0.0.1/24 dev gre1\r"
+expect "*$"
+sleep 1
+
+send "sudo ip link set gre1 up\r"
+expect "*$"
+sleep 1
+
+puts "\n✓ GRE隧道已创建并启动"
+
+# 步骤6: 验证隧道状态
+puts "\n=========================================="
+puts "步骤6: 验证GRE隧道状态"
+puts "=========================================="
+send "echo '--- GRE隧道接口信息 ---'\r"
+expect "*$"
+send "ip addr show gre1\r"
+expect "*$"
+sleep 1
+
+send "echo ''\r"
+expect "*$"
+send "echo '--- GRE隧道详细信息 ---'\r"
+expect "*$"
+send "ip tunnel show gre1\r"
+expect "*$"
+sleep 1
+
+send "echo ''\r"
+expect "*$"
+send "echo '--- 路由表 ---'\r"
+expect "*$"
+send "ip route | grep 10.0.0\r"
+expect "*$"
+sleep 1
+
+# 步骤7: 测试连通性
+puts "\n=========================================="
+puts "步骤7: 测试连通性"
+puts "=========================================="
+send "echo '尝试ping路由器 10.0.0.3 ...'\r"
+expect "*$"
+send "ping -c 3 -W 2 10.0.0.3\r"
+expect "*$"
+sleep 4
+
+# 完成
+puts "\n=========================================="
+puts "配置完成!"
+puts "=========================================="
+puts "\n配置摘要:"
+puts "- 永久化配置文件: /etc/network/interfaces.d/gre1"
+puts "- GRE隧道IP: 10.0.0.1/24"
+puts "- 路由器隧道IP: 10.0.0.3"
+puts "- 系统重启后自动生效"
+puts "\n退出SSH连接..."
+
+send "exit\r"
+expect eof

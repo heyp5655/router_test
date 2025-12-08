@@ -876,7 +876,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="modbus_server_ip">Modbus Server IP (PC IP)</label>
-                        <input type="text" id="modbus_server_ip" v-model="serverConfig.modbus_server_ip" placeholder="192.168.50.108">
+                        <input type="text" id="modbus_server_ip" v-model="serverConfig.modbus_server_ip" placeholder="192.168.1.100">
                     </div>
                     <div class="form-group">
                         <label for="modbus_port">Modbus端口</label>
@@ -1231,7 +1231,7 @@
                     mqtt_port: 1883,
                     mqtt_username: 'admin',
                     mqtt_password: 'password',
-                    modbus_server_ip: '192.168.50.108',
+                    modbus_server_ip: '192.168.1.100',
                     modbus_port: 5020
                 },
                 testConfig: {
@@ -1547,6 +1547,13 @@
                                     children: [
                                         { name: 'python', path: '功能用例/APP/python', expanded: false, children: [], testCases: [] }
                                     ],
+                                    testCases: []
+                                },
+                                {
+                                    name: '端口冲突检测',
+                                    path: '功能用例/端口冲突检测',
+                                    expanded: false,
+                                    children: [],
                                     testCases: []
                                 }
                             ],

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(python:*)",
+      "Bash(powershell -Command \"Get-Content ''E:\\GIT\\ROUTER_TEST\\logs\\test_run_20251202_180448.log'' | Select-String -Pattern ''上传|upload|file_browser|失败|error'' -Context 2\")",
+      "Bash(pip install:*)",
+      "Bash(powershell -Command \"(Get-Content ''E:\\GIT\\ROUTER_TEST\\CLAUDE.md'' | Select-String -Pattern ''最后更新|last update'' -Context 1).LineNumber | Select-Object -First 1\")",
+      "Bash(powershell -Command \"Get-Content ''E:\\GIT\\ROUTER_TEST\\CLAUDE.md'' | Select-String ''最后更新'' | Select-Object -First 1\")",
+      "Bash(powershell -Command:*)",
+      "Bash(dir /B /O-D \"E:\\GIT\\ROUTER_TEST\\logs\\test_run_*.log\")",
+      "Bash(dir E:GITROUTER_TESTlogsserial /O-D /B)",
+      "Bash(dir /B /O-D \"E:\\GIT\\ROUTER_TEST\\logs\\serial\")",
+      "Bash(dir /B /O-D \"E:\\GIT\\ROUTER_TEST\\logs\\serial\\COM8_*.log\")",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(echo:*)",
+      "Bash(echo.)",
+      "Bash(cmd /c \"dir /B /O-D E:\\GIT\\ROUTER_TEST\\logs\\test_run_*.log\")",
+      "Bash(del \"E:\\GIT\\ROUTER_TEST\\test_firewall_subtab_fix.py\")",
+      "Bash(cmd /c \"dir /B /O-D E:\\GIT\\ROUTER_TEST\\logs\\test_run_*.log | findstr /R \"^test_run_.*.log$\" | head -1\")",
+      "Bash(cmd /c \"dir /B /O-D E:\\GIT\\ROUTER_TEST\\logs\\test_run_*.log | head -1\")",
+      "Bash(grep:*)",
+      "Bash(iconv:*)",
+      "Bash(curl:*)",
+      "Bash(ssh yuxy@192.168.50.48 'echo \"\"SSH连接成功\"\"; uname -a')",
+      "Bash(ssh:*)",
+      "Bash(sshpass:*)",
+      "Bash(ping:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(chcp 65001)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

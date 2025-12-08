@@ -275,12 +275,12 @@ def run_tests():
             model=data['model'],
             module_type=data.get('module_type', 'auto'),
             serial_port=data.get('serial_port', 'COM3'),
-            serial_baudrate=data.get('serial_baudrate', 115200),
+            serial_baudrate=int(data.get('serial_baudrate', 115200)),
             industrial_serial_port=data.get('industrial_serial_port', 'COM4'),
             mqtt_broker=data.get('mqtt_broker', '192.168.50.46'),
-            mqtt_port=data.get('mqtt_port', 1883),
-            modbus_server_ip=data.get('modbus_server_ip', '192.168.50.108'),
-            modbus_port=data.get('modbus_port', 5020)
+            mqtt_port=int(data.get('mqtt_port', 1883)),  # 确保转换为整数
+            modbus_server_ip=data.get('modbus_server_ip', '192.168.1.100'),
+            modbus_port=int(data.get('modbus_port', 5020))  # 确保转换为整数
         )
 
         print(f"构建的路由器配置: {router_config}")
@@ -343,12 +343,12 @@ def start_test_stream():
             model=data['model'],
             module_type=data.get('module_type', 'auto'),
             serial_port=data.get('serial_port', 'COM3'),
-            serial_baudrate=data.get('serial_baudrate', 115200),
+            serial_baudrate=int(data.get('serial_baudrate', 115200)),
             industrial_serial_port=data.get('industrial_serial_port', 'COM4'),
             mqtt_broker=data.get('mqtt_broker', '192.168.50.46'),
-            mqtt_port=data.get('mqtt_port', 1883),
-            modbus_server_ip=data.get('modbus_server_ip', '192.168.50.108'),
-            modbus_port=data.get('modbus_port', 5020)
+            mqtt_port=int(data.get('mqtt_port', 1883)),  # 确保转换为整数
+            modbus_server_ip=data.get('modbus_server_ip', '192.168.1.100'),
+            modbus_port=int(data.get('modbus_port', 5020))  # 确保转换为整数
         )
 
         # 处理测试模式
@@ -682,6 +682,84 @@ def refresh_test_cases():
         print(f"刷新测试用例列表时出错: {str(e)}")
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/failed-cases', methods=['GET'])
+def get_failed_cases():
+    """获取上次测试失败的用例列表"""
+    try:
+        print("=== 获取失败用例列表 ===")
+        failed_class_names = test_runner.get_failed_cases()
+        print(f"失败的用例类名: {failed_class_names}")
+
+        if not failed_class_names:
+            return jsonify({
+                "has_failed_cases": False,
+                "failed_cases": [],
+                "count": 0
+            })
+
+        # 获取完整的用例信息
+        all_cases = test_runner.get_available_cases(regression_only=False)
+        failed_cases_info = []
+
+        for case in all_cases:
+            if case['class_name'] in failed_class_names:
+                failed_cases_info.append({
+                    'name': case['name'],
+                    'class_name': case['class_name'],
+                    'description': case['description'],
+                    'category': case.get('category', '')
+                })
+
+        return jsonify({
+            "has_failed_cases": True,
+            "failed_cases": failed_cases_info,
+            "count": len(failed_cases_info)
+        })
+
+    except Exception as e:
+        print(f"获取失败用例列表时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/rerun-failed', methods=['POST'])
+def rerun_failed_tests():
+    """重新运行失败的测试用例"""
+    try:
+        print("=== 重新运行失败的测试用例 ===")
+        result = test_runner.rerun_failed_tests()
+        print(f"失败用例重测完成，结果: {result['overall_result']}")
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"重新运行失败用例时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "overall_result": "ERROR"
+        }), 500
+
+
+@app.route('/api/rerun-last', methods=['POST'])
+def rerun_last_test():
+    """重新运行上次的测试（完整重跑）"""
+    try:
+        print("=== 重新运行上次测试 ===")
+        result = test_runner.rerun_last_test()
+        print(f"上次测试重跑完成，结果: {result['overall_result']}")
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"重新运行上次测试时出错: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "overall_result": "ERROR"
+        }), 500
 
 
 @app.route('/api/test-stream-connection')

@@ -7,7 +7,7 @@ import paramiko
 
 
 class MqttRouterCommandRebootTest(BaseTest):
-    """MQTT下发命令指令给路由器及设备回复测试
+    """MQTT下发路由器重启指令发出以及设备回复测试
 
     测试项：工业协议/网络/MQTT
     测试点：MQTT下发reboot命令并验证路由器响应和重启
@@ -70,7 +70,7 @@ class MqttRouterCommandRebootTest(BaseTest):
     @property
     def test_name(self):
         """实现抽象属性，返回测试名称"""
-        return "MQTT下发命令指令给路由器及设备回复"
+        return "MQTT下发重启命令给路由器及重启后路由器设备回复MQTT信息"
 
     @property
     def description(self):

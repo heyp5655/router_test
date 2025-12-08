@@ -22,12 +22,12 @@ for sheet_name in wb.sheetnames:
             row_data.append(cell.value)
         print(f'Row {i}: {row_data}')
 
-    # 查找ID为14的行
-    print('\n查找ID=14的行...')
+    # 查找ID为12的行
+    print('\n查找ID=12的行...')
     for i in range(1, ws.max_row + 1):
         cell_value = ws.cell(row=i, column=1).value
-        if cell_value == 14 or cell_value == '14':
-            print(f'\n找到ID=14在第{i}行:')
+        if cell_value == 12 or cell_value == '12':
+            print(f'\n找到ID=12在第{i}行:')
             row_data = []
             for j in range(1, ws.max_column + 1):
                 cell = ws.cell(row=i, column=j)

@@ -1,9 +1,17 @@
 from abc import ABC, abstractmethod
 from models.test_config import TestConfig, RouterConfig
+from utils.state_manager import state_manager
 
 
 class BaseTest(ABC):
-    """测试用例基类"""
+    """测试用例基类
+
+    提供测试用例的基础功能：
+    - 自动保存和恢复PC网卡状态
+    - 自动保存和恢复路由器配置状态
+    - 统一的日志记录
+    - Python SDK安装检查
+    """
 
     # SSH root用户凭据（用于执行系统命令，如urtool、ifconfig、cat等）
     # admin用户登录后进入vtysh，无法执行系统命令
@@ -30,7 +38,11 @@ class BaseTest(ABC):
             print("❌ 没有有效的路由器配置，router_client 为 None")
             self.router_client = None
 
-        print(f"=== BaseTest 初始化完成 ===")
+        # 状态管理标志
+        self._state_saved = False
+        self._auto_restore = True  # 默认启用自动恢复
+
+        print(f"=== BaseTest 初始化完成 ===\n")
 
     def _create_router_client(self):
         """创建路由器客户端 - 支持多种导入路径"""
@@ -120,8 +132,115 @@ class BaseTest(ABC):
         pass
 
     def cleanup(self):
-        """测试清理"""
-        print(f"{self.test_name} 清理完成")
+        """测试清理 - 自动恢复测试前的状态并关闭浏览器"""
+        print(f"\n{'='*70}")
+        print(f"测试清理: {self.test_name}")
+        print(f"{'='*70}\n")
+
+        # 如果启用了自动恢复且已保存状态，则恢复
+        if self._auto_restore and self._state_saved:
+            print("自动恢复测试前的状态...")
+            self.restore_test_environment()
+        else:
+            if not self._auto_restore:
+                print("⚠️  自动恢复已禁用，跳过状态恢复")
+            elif not self._state_saved:
+                print("⚠️  没有保存的状态，跳过恢复")
+
+        # 自动关闭浏览器（重要：防止资源泄露）
+        if self.router_client and hasattr(self.router_client, 'driver') and self.router_client.driver:
+            try:
+                print("关闭路由器Web浏览器...")
+                self.router_client.close()
+                print("✅ 浏览器已关闭")
+            except Exception as e:
+                print(f"⚠️  关闭浏览器时出错: {e}")
+
+        print(f"\n✅ {self.test_name} 清理完成\n")
+
+    def save_test_environment(self, save_pc_adapter: bool = True, save_router: bool = False,
+                             adapter_name: str = "TEST") -> bool:
+        """
+        保存测试环境状态
+
+        Args:
+            save_pc_adapter: 是否保存PC网卡状态
+            save_router: 是否保存路由器配置状态
+            adapter_name: PC网卡名称
+
+        Returns:
+            bool: 保存是否成功
+        """
+        print(f"\n{'='*70}")
+        print(f"保存测试环境状态")
+        print(f"{'='*70}\n")
+
+        success = True
+
+        # 保存PC网卡状态
+        if save_pc_adapter:
+            print(f"保存PC网卡状态 ({adapter_name})...")
+            if not state_manager.save_pc_adapter_state(adapter_name):
+                print(f"⚠️  保存PC网卡状态失败")
+                success = False
+
+        # 保存路由器状态
+        if save_router and self.router_client:
+            print(f"保存路由器配置状态...")
+            router_ip = self.config.router_config.router_ip if hasattr(self.config, 'router_config') else "unknown"
+            if not state_manager.save_router_state(router_ip, self.router_client):
+                print(f"⚠️  保存路由器状态失败")
+                success = False
+
+        if success:
+            self._state_saved = True
+            print(f"\n✅ 测试环境状态保存完成")
+            print(f"   已保存: {state_manager.get_saved_states_summary()}\n")
+        else:
+            print(f"\n⚠️  测试环境状态保存部分失败\n")
+
+        return success
+
+    def restore_test_environment(self) -> bool:
+        """
+        恢复测试环境到之前保存的状态
+
+        Returns:
+            bool: 恢复是否成功
+        """
+        print(f"\n{'='*70}")
+        print(f"恢复测试环境状态")
+        print(f"{'='*70}\n")
+
+        success = True
+
+        # 恢复PC网卡状态
+        if not state_manager.restore_pc_adapter_state():
+            print(f"⚠️  恢复PC网卡状态失败")
+            success = False
+
+        # 恢复路由器状态
+        if not state_manager.restore_router_state(self.router_client):
+            print(f"⚠️  恢复路由器状态失败")
+            success = False
+
+        if success:
+            print(f"\n✅ 测试环境状态恢复完成\n")
+        else:
+            print(f"\n⚠️  测试环境状态恢复部分失败\n")
+
+        return success
+
+    def set_auto_restore(self, enabled: bool):
+        """
+        设置是否启用自动恢复
+
+        Args:
+            enabled: True启用，False禁用
+        """
+        self._auto_restore = enabled
+        status = "启用" if enabled else "禁用"
+        print(f"{'✅' if enabled else '⚠️ '} 自动恢复已{status}")
 
     def ensure_python_sdk_installed(self, router_ip=None):
         """确保Python SDK已安装，如果未安装则自动安装

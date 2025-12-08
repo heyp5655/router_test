@@ -20,7 +20,7 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
     3. 内存~30M：安装卸载10次，统计成功/失败比例
     4. 内存<28M：安装1次，应该失败
 
-    注意：测试过程中内存不足时，需要后台执行reboot重启，然后继续下一步测试
+    注意：测试过程中内存不足时，通过SSH执行 echo 1 > /proc/sys/vm/drop_caches 释放内存
 
     预期：
     1. 内存充足时，安装成功率高
@@ -158,11 +158,11 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
         # 调整内存到目标范围
         print(f"\n步骤1: 调整内存到 {scenario['min']//1024}-{scenario['max']//1024}MB 范围...")
         if not self._adjust_memory_to_target(scenario['target'], scenario['min'], scenario['max']):
-            print(f"  ⚠️ 无法调整内存，尝试重启设备...")
-            self._reboot_device()
-            # 重启后重新调整
+            print(f"  ⚠️ 无法调整内存，尝试释放内存...")
+            self._release_memory()
+            # 释放内存后重新调整
             if not self._adjust_memory_to_target(scenario['target'], scenario['min'], scenario['max']):
-                print(f"  ❌ 重启后仍无法调整内存，跳过此场景")
+                print(f"  ❌ 释放内存后仍无法调整到目标范围，跳过此场景")
                 result['details'].append({'error': '无法调整内存'})
                 return result
 
@@ -177,9 +177,16 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
             if not (scenario['min'] <= current_mem <= scenario['max']):
                 print(f"  ⚠️ 内存偏离目标范围 (当前: {current_mem}KB)，重新调整...")
                 if not self._adjust_memory_to_target(scenario['target'], scenario['min'], scenario['max']):
-                    print(f"  ❌ 无法调整内存，尝试重启...")
-                    self._reboot_device()
-                    continue
+                    print(f"  ❌ 无法调整内存，尝试释放内存...")
+                    try:
+                        self._release_memory()
+                        # 释放后重新尝试
+                        if not self._adjust_memory_to_target(scenario['target'], scenario['min'], scenario['max']):
+                            print(f"  ❌ 释放内存后仍无法调整，跳过此循环")
+                            continue
+                    except Exception as e:
+                        print(f"  ❌ 释放内存失败: {str(e)}，跳过此循环")
+                        continue
 
             # 刷新页面
             self.router_client.driver.refresh()
@@ -207,9 +214,23 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
                     result['uninstall_fail'] += 1
                     cycle_result['uninstall'] = 'fail'
                     print(f"  ❌ 卸载失败")
-                    # 卸载失败，尝试重启
-                    print(f"  卸载失败，重启设备...")
-                    self._reboot_device()
+                    # 卸载失败，尝试通过SSH强制清理
+                    print(f"  卸载失败，尝试通过SSH强制清理SDK...")
+                    try:
+                        self._force_cleanup_sdk_via_ssh()
+                        print(f"  ✅ 强制清理完成")
+                    except Exception as e:
+                        print(f"  ⚠️ 强制清理失败: {str(e)}")
+                        # 强制清理失败，释放内存后重新登录Web
+                        try:
+                            self._release_memory()
+                            time.sleep(3)
+                            # 重新登录Web并跳转
+                            self.router_client.driver.refresh()
+                            time.sleep(2)
+                            self._navigate_to_python_status()
+                        except Exception as e2:
+                            print(f"  ⚠️ 重新登录失败: {str(e2)}")
 
             else:
                 result['install_fail'] += 1
@@ -272,51 +293,42 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
         except Exception as e:
             raise Exception(f"SSH连接失败: {str(e)}")
 
-    def _reboot_device(self):
-        """重启设备"""
+    def _release_memory(self):
+        """通过drop_caches释放内存"""
         try:
-            print("  [重启] 执行设备重启...")
+            print("  [释放内存] 执行 drop_caches...")
 
-            # 通过SSH执行reboot命令（后台执行）
+            # 通过SSH执行 drop_caches 释放内存
             if self.ssh_conn:
                 try:
-                    self.ssh_conn.exec_command("reboot &")
-                except:
-                    pass  # reboot会断开连接，忽略异常
+                    # 同步文件系统缓存，然后释放缓存
+                    self.ssh_conn.exec_command("sync")
+                    time.sleep(1)
 
-            print("  [重启] 等待设备重启 (90秒)...")
-            time.sleep(90)
+                    # 释放页缓存、目录项和inode缓存
+                    # echo 1 只释放页缓存
+                    # echo 2 释放目录项和inode
+                    # echo 3 释放所有缓存（1+2）
+                    stdin, stdout, stderr = self.ssh_conn.exec_command("echo 1 > /proc/sys/vm/drop_caches")
+                    stdout.channel.recv_exit_status()  # 等待命令执行完成
 
-            # 重新建立SSH连接
-            print("  [重启] 重新连接SSH...")
-            max_attempts = 10
-            for attempt in range(max_attempts):
-                try:
-                    self._connect_ssh()
-                    print(f"  [重启] ✅ SSH重新连接成功 (尝试 {attempt+1}/{max_attempts})")
-                    break
-                except:
-                    if attempt < max_attempts - 1:
-                        print(f"  [重启] SSH连接失败，10秒后重试... ({attempt+1}/{max_attempts})")
-                        time.sleep(10)
-                    else:
-                        raise Exception("重启后无法重新连接SSH")
+                    print("  [释放内存] ✅ drop_caches 执行成功")
 
-            # 重新登录Web
-            print("  [重启] 重新登录Web界面...")
-            time.sleep(5)
-            if not self.router_client.login_web():
-                raise Exception("重启后Web登录失败")
+                    # 等待一下让系统稳定
+                    time.sleep(2)
 
-            # 重新跳转到Python状态页面
-            print("  [重启] 重新跳转到Python状态页面...")
-            self._navigate_to_python_status()
-            time.sleep(3)
+                    # 检查释放后的内存
+                    current_mem = self._get_free_memory()
+                    print(f"  [释放内存] 释放后内存: {current_mem} KB ({current_mem//1024} MB)")
 
-            print("  [重启] ✅ 设备重启完成，已重新连接")
+                except Exception as e:
+                    print(f"  [释放内存] ❌ drop_caches 执行失败: {str(e)}")
+                    raise
+
+            print("  [释放内存] ✅ 内存释放完成")
 
         except Exception as e:
-            print(f"  [重启] ❌ 重启过程出错: {str(e)}")
+            print(f"  [释放内存] ❌ 释放内存过程出错: {str(e)}")
             raise
 
     def _get_free_memory(self):
@@ -359,12 +371,21 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
 
             # 内存太低，需要释放一些内存
             elif current_mem < min_mem:
-                print(f"  内存过低({current_mem//1024}MB)，删除临时文件释放内存...")
+                print(f"  内存过低({current_mem//1024}MB)，先删除临时文件...")
                 try:
                     self.ssh_conn.exec_command("rm -f /tmp/mem_filler_*.tmp 2>/dev/null")
                     time.sleep(2)
                 except Exception as e:
                     print(f"  ⚠️ 删除临时文件失败: {str(e)}")
+
+                # 如果删除临时文件后内存仍然不足，尝试drop_caches
+                current_mem_after_delete = self._get_free_memory()
+                if current_mem_after_delete < min_mem:
+                    print(f"  内存仍然过低({current_mem_after_delete//1024}MB)，执行drop_caches释放内存...")
+                    try:
+                        self._release_memory()
+                    except Exception as e:
+                        print(f"  ⚠️ 释放内存失败: {str(e)}")
 
             time.sleep(1)
 
@@ -418,8 +439,12 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
                     if success:
                         print("  ✅ 初始SDK已卸载")
                     else:
-                        print("  ⚠️ 初始卸载失败，尝试重启...")
-                        self._reboot_device()
+                        print("  ⚠️ 初始卸载失败，尝试强制清理...")
+                        try:
+                            self._force_cleanup_sdk_via_ssh()
+                            print("  ✅ 强制清理成功")
+                        except Exception as e:
+                            print(f"  ❌ 强制清理失败: {str(e)}")
                 else:
                     print("  ✅ SDK未安装")
             except:
@@ -547,6 +572,47 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
         except Exception as e:
             print(f"  ❌ 卸载异常: {str(e)}")
             return False
+
+    def _force_cleanup_sdk_via_ssh(self):
+        """通过SSH强制清理SDK（当Web卸载失败时使用）"""
+        try:
+            if not self.ssh_conn:
+                raise Exception("SSH连接不存在")
+
+            # 停止Python SDK相关进程
+            print("    [强制清理] 停止Python SDK进程...")
+            self.ssh_conn.exec_command("killall -9 python python3 2>/dev/null")
+            time.sleep(1)
+
+            # 清理SDK安装目录（根据实际路径调整）
+            print("    [强制清理] 清理SDK文件...")
+            cleanup_commands = [
+                "rm -rf /tmp/pysdk* 2>/dev/null",
+                "rm -rf /usr/lib/python* 2>/dev/null",
+                "rm -rf /overlay/upper/usr/lib/python* 2>/dev/null",
+            ]
+
+            for cmd in cleanup_commands:
+                try:
+                    self.ssh_conn.exec_command(cmd)
+                except:
+                    pass
+
+            time.sleep(2)
+
+            # 释放内存
+            print("    [强制清理] 释放内存...")
+            try:
+                self._release_memory()
+            except:
+                pass
+
+            print("    [强制清理] ✅ 强制清理完成")
+            return True
+
+        except Exception as e:
+            print(f"    [强制清理] ❌ 强制清理失败: {str(e)}")
+            raise
 
     def cleanup(self):
         """测试清理"""

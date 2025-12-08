@@ -1,4 +1,6 @@
 import importlib
+import importlib.util
+from importlib import reload
 import inspect
 import pkgutil
 import time
@@ -79,6 +81,10 @@ class TestRunner:
             "details": []
         }
 
+        # 新增：保存最后一次测试请求和失败用例
+        self.last_test_request = None  # 保存最后一次测试请求
+        self.failed_cases = []  # 保存失败的测试用例类名列表
+
         self._log("开始发现测试用例")
         self.available_cases = self._discover_test_cases()
         self._log(f"TestRunner 初始化完成，发现 {len(self.available_cases)} 个测试用例")
@@ -93,8 +99,13 @@ class TestRunner:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         formatted_message = f"[{timestamp}] [{level}] {message}"
 
-        # 输出到控制台
-        print(formatted_message)
+        # 输出到控制台（处理emoji编码问题）
+        try:
+            print(formatted_message)
+        except UnicodeEncodeError:
+            # Windows控制台GBK编码不支持emoji，替换为文本
+            safe_message = formatted_message.encode('gbk', errors='replace').decode('gbk')
+            print(safe_message)
 
         # 保存到缓冲区
         self.log_buffer.append(formatted_message)
@@ -222,9 +233,11 @@ class TestRunner:
         test_packages = [
             'test_cases.wan_tests',
             'test_cases.cellular_tests',
-            'test_cases.mqtt_test',         # MQTT测试
-            'test_cases.industrial_tests',  # 工业协议测试
-            'test_cases.app_tests'
+            'test_cases.mqtt_test',               # MQTT测试
+            'test_cases.industrial_tests',        # 工业协议测试
+            'test_cases.app_tests',
+            'test_cases.stability',               # 稳定性测试
+            'test_cases.port_conflict_tests'      # 端口冲突检测测试
         ]
 
         for package_name in test_packages:
@@ -326,11 +339,16 @@ class TestRunner:
                 return '功能用例/网络/接口/蜂窝网络'
             else:
                 return '功能用例/网络/接口/蜂窝网络'
+        elif 'port_conflict' in package_name or 'port_conflict' in module_name.lower():
+            # 端口冲突检测测试用例
+            return '功能用例/端口冲突检测'
         elif 'app_tests' in package_name:
             if 'python' in module_name.lower():
                 return '功能用例/APP/python'
             else:
                 return '功能用例/APP'
+        elif 'stability' in package_name:
+            return '稳定性用例'
         else:
             return '功能用例/网络'
 
@@ -500,6 +518,21 @@ class TestRunner:
         self.test_results = results
         self.last_run_summary = final_result
 
+        # 新增：保存最后一次测试请求
+        self.last_test_request = test_request
+        self._log(f"已保存最后一次测试请求配置")
+
+        # 新增：保存失败的测试用例类名
+        self.failed_cases = []
+        for result in results:
+            if result['status'] in ['FAIL', 'ERROR']:
+                # 找到对应的用例信息
+                for case in cases_to_run:
+                    if case['name'] == result['test_name']:
+                        self.failed_cases.append(case['class_name'])
+                        break
+        self._log(f"失败用例列表: {self.failed_cases}")
+
         self._log(f"\n{'=' * 60}")
         self._log(f"测试执行完成")
         self._log(f"{'=' * 60}")
@@ -520,7 +553,15 @@ class TestRunner:
         try:
             # 动态导入并实例化测试类
             self._log(f"1. 导入模块: {case_info['module_path']}")
-            module = importlib.import_module(case_info['module_path'])
+
+            # 检查模块是否已导入，如果是则重新加载
+            if case_info['module_path'] in sys.modules:
+                self._log(f"  模块已存在，重新加载以获取最新代码...")
+                module = sys.modules[case_info['module_path']]
+                module = reload(module)
+            else:
+                module = importlib.import_module(case_info['module_path'])
+
             self._log(f"✅ 模块导入成功")
 
             self._log(f"2. 获取测试类: {case_info['class_name']}")
@@ -580,6 +621,17 @@ class TestRunner:
                 except Exception as e:
                     self._log(f"测试清理过程中出错: {str(e)}", "WARNING")
 
+                # 额外的安全机制：即使cleanup失败，也要尝试关闭浏览器
+                try:
+                    if hasattr(test_instance, 'router_client') and test_instance.router_client:
+                        if hasattr(test_instance.router_client, 'driver') and test_instance.router_client.driver:
+                            self._log("额外安全机制：强制关闭浏览器...")
+                            test_instance.router_client.driver.quit()
+                            test_instance.router_client.driver = None
+                            self._log("✅ 浏览器已强制关闭")
+                except Exception as e:
+                    self._log(f"⚠️ 强制关闭浏览器失败: {str(e)}", "WARNING")
+
             duration = round(time.time() - start_time, 2)
 
             result = {
@@ -598,6 +650,19 @@ class TestRunner:
             actual_test_name = case_info.get('name', '未知测试')
             self._log(f"❌ 测试 {actual_test_name} 初始化错误: {str(e)}", "ERROR")
             self._log(f"初始化错误堆栈: {traceback.format_exc()}", "ERROR")
+
+            # 初始化错误时也要尝试清理浏览器
+            try:
+                if 'test_instance' in locals():
+                    if hasattr(test_instance, 'router_client') and test_instance.router_client:
+                        if hasattr(test_instance.router_client, 'driver') and test_instance.router_client.driver:
+                            self._log("初始化错误：尝试关闭浏览器...")
+                            test_instance.router_client.driver.quit()
+                            test_instance.router_client.driver = None
+                            self._log("✅ 浏览器已关闭")
+            except Exception as cleanup_error:
+                self._log(f"⚠️ 初始化错误后关闭浏览器失败: {str(cleanup_error)}", "WARNING")
+
             error_result = {
                 'test_name': actual_test_name,
                 'category': case_info.get('category', ''),  # 测试项
@@ -639,3 +704,108 @@ class TestRunner:
     def get_test_summary(self) -> Dict[str, Any]:
         """获取测试汇总信息（兼容性方法）"""
         return self.last_run_summary
+
+    def get_failed_cases(self) -> List[str]:
+        """获取失败的测试用例类名列表
+
+        Returns:
+            List[str]: 失败用例的类名列表
+        """
+        return self.failed_cases
+
+    def get_last_test_request(self) -> Optional[TestRequest]:
+        """获取最后一次测试请求
+
+        Returns:
+            Optional[TestRequest]: 最后一次测试请求，如果没有则返回None
+        """
+        return self.last_test_request
+
+    def rerun_failed_tests(self) -> Dict[str, Any]:
+        """重新运行失败的测试用例
+
+        Returns:
+            Dict[str, Any]: 测试结果
+        """
+        if not self.failed_cases:
+            self._log("没有失败的测试用例需要重跑", "WARNING")
+            return {
+                "overall_result": "ERROR",
+                "summary": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "error": 1,
+                    "duration": 0
+                },
+                "details": [{
+                    'test_name': 'No Failed Tests',
+                    'status': 'ERROR',
+                    'message': '没有失败的测试用例',
+                    'duration': 0
+                }]
+            }
+
+        if not self.last_test_request:
+            self._log("没有找到上次测试的配置", "ERROR")
+            return {
+                "overall_result": "ERROR",
+                "summary": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "error": 1,
+                    "duration": 0
+                },
+                "details": [{
+                    'test_name': 'No Last Request',
+                    'status': 'ERROR',
+                    'message': '没有找到上次测试的配置',
+                    'duration': 0
+                }]
+            }
+
+        self._log(f"重新运行 {len(self.failed_cases)} 个失败的测试用例")
+        self._log(f"失败用例列表: {self.failed_cases}")
+
+        # 创建新的测试请求，使用失败用例的类名
+        rerun_request = TestRequest(
+            router_config=self.last_test_request.router_config,
+            test_mode=TestMode.SPECIFIC,
+            selected_cases=self.failed_cases,  # 使用失败用例的类名
+            timeout=self.last_test_request.timeout,
+            restore_default=self.last_test_request.restore_default
+        )
+
+        return self.run_tests(rerun_request)
+
+    def rerun_last_test(self) -> Dict[str, Any]:
+        """重新运行上次的测试（完整重跑）
+
+        Returns:
+            Dict[str, Any]: 测试结果
+        """
+        if not self.last_test_request:
+            self._log("没有找到上次测试的配置", "ERROR")
+            return {
+                "overall_result": "ERROR",
+                "summary": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "error": 1,
+                    "duration": 0
+                },
+                "details": [{
+                    'test_name': 'No Last Request',
+                    'status': 'ERROR',
+                    'message': '没有找到上次测试的配置',
+                    'duration': 0
+                }]
+            }
+
+        self._log(f"重新运行上次测试")
+        self._log(f"测试模式: {self.last_test_request.test_mode.value}")
+        self._log(f"选中的用例: {self.last_test_request.selected_cases}")
+
+        return self.run_tests(self.last_test_request)
