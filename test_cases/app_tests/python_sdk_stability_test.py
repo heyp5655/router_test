@@ -31,9 +31,6 @@ class PythonSDKStabilityTest(BaseTest):
     category = "功能用例/APP/python"
     is_regression = True  # 标记为回归测试用例
 
-    # SDK文件路径
-    SDK_FILE_PATH = r"E:\GIT\ROUTER_TEST\config\pysdk-ur3x-5.0.2-u1.tar.gz"
-
     # 测试循环次数
     TEST_ITERATIONS = 1000
 
@@ -50,6 +47,9 @@ class PythonSDKStabilityTest(BaseTest):
     def __init__(self, config):
         """初始化方法"""
         super().__init__(config)
+
+        # 动态获取SDK文件路径
+        self.SDK_FILE_PATH = self.get_sdk_file_path()
 
         # 获取路由器配置
         self.router_ip = self.config.router_config.router_ip
@@ -106,7 +106,11 @@ class PythonSDKStabilityTest(BaseTest):
                 bytesize=8,
                 parity='N',
                 stopbits=1,
-                timeout=1
+                timeout=1,
+                # 流控配置（与SerialClient保持一致，避免字符丢失）
+                xonxoff=False,   # XON/XOFF软件流控：关闭
+                rtscts=False,    # RTS/CTS硬件流控：关闭
+                dsrdtr=False     # DTR/DSR流控：关闭
             )
             print("✅ 串口连接成功")
 

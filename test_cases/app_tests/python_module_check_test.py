@@ -30,9 +30,6 @@ class PythonModuleCheckTest(BaseTest):
     category = "功能用例/APP/python"
     is_regression = True  # 标记为回归测试用例
 
-    # SDK文件路径
-    SDK_FILE_PATH = r"E:\GIT\ROUTER_TEST\config\pysdk-ur3x-5.0.2-u1.tar.gz"
-
     # selftest.py 脚本内容
     SELFTEST_SCRIPT = '''# selftest.py
 import importlib, sys
@@ -105,6 +102,9 @@ check(extra, "EXTRA (from doc)")
         """初始化方法"""
         super().__init__(config)
 
+        # 动态获取SDK文件路径
+        self.SDK_FILE_PATH = self.get_sdk_file_path()
+
         # 获取路由器配置
         self.router_ip = self.config.router_config.router_ip
 
@@ -142,6 +142,12 @@ check(extra, "EXTRA (from doc)")
         if not self._ensure_sdk_installed():
             raise Exception("SDK安装失败")
         print("✅ SDK已就绪\n")
+
+        # 前置1.5: 检查并启用SSH（新版本固件默认关闭SSH）
+        print("前置条件1.5: 检查SSH启用状态...")
+        if not self.router_client.ensure_ssh_enabled():
+            raise Exception("SSH未启用且自动启用失败，无法继续测试")
+        print("✅ SSH已就绪\n")
 
         # 前置2: 检查Python版本
         print("前置条件2: 检查Python版本...")
@@ -496,11 +502,9 @@ check(extra, "EXTRA (from doc)")
             script_path = "/tmp/selftest.py"
             print(f"上传脚本到 {script_path}...")
 
-            # 转义脚本内容中的特殊字符
-            script_content = self.SELFTEST_SCRIPT.replace('\\', '\\\\').replace('$', '\\$').replace('`', '\\`')
-
-            # 创建上传命令
-            upload_cmd = f"cat > {script_path} << 'SELFTEST_EOF'\n{self.SELFTEST_SCRIPT}\nSELFTEST_EOF"
+            # 创建上传命令 (heredoc格式，确保结束符单独成一行)
+            # 注意：SELFTEST_EOF 必须单独成一行，前后不能有任何字符
+            upload_cmd = f"cat > {script_path} << 'SELFTEST_EOF'\n{self.SELFTEST_SCRIPT}\nSELFTEST_EOF\n"
 
             print(f"执行上传命令...")
             stdin, stdout, stderr = ssh.exec_command(upload_cmd)
@@ -749,7 +753,11 @@ check(extra, "EXTRA (from doc)")
                 bytesize=8,
                 parity='N',
                 stopbits=1,
-                timeout=1
+                timeout=1,
+                # 流控配置（与SerialClient保持一致，避免字符丢失）
+                xonxoff=False,   # XON/XOFF软件流控：关闭
+                rtscts=False,    # RTS/CTS硬件流控：关闭
+                dsrdtr=False     # DTR/DSR流控：关闭
             )
             print("✅ 串口连接成功")
 

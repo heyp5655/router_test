@@ -8,6 +8,7 @@ import time
 import serial
 import re
 import os
+import glob
 from datetime import datetime
 from typing import Optional, Tuple
 
@@ -15,7 +16,42 @@ from typing import Optional, Tuple
 class SerialClient:
     """串口客户端工具类（带完整日志记录）"""
 
-    def __init__(self, port: str, baudrate: int = 115200, timeout: int = 30, log_dir: str = None):
+    @staticmethod
+    def detect_firmware_file(firmware_dir: str = None) -> Optional[str]:
+        """
+        自动检测固件文件
+
+        Args:
+            firmware_dir: 固件目录（默认为 E:\\GIT\\ROUTER_TEST\\docs\\upload\\old）
+
+        Returns:
+            str: 固件文件名（不含路径），如果未找到则返回None
+        """
+        if firmware_dir is None:
+            # 默认固件目录
+            firmware_dir = r"E:\GIT\ROUTER_TEST\docs\upload\old"
+
+        # 支持的固件文件扩展名
+        extensions = ['*.ext2', '*.bin', '*.img', '*.tar', '*.tar.gz']
+
+        print(f"🔍 正在检测固件文件: {firmware_dir}")
+
+        for ext in extensions:
+            pattern = os.path.join(firmware_dir, ext)
+            files = glob.glob(pattern)
+            if files:
+                # 找到固件文件，返回文件名（不含路径）
+                firmware_path = files[0]
+                firmware_name = os.path.basename(firmware_path)
+                print(f"✅ 检测到固件文件: {firmware_name}")
+                return firmware_name
+
+        print(f"❌ 未在 {firmware_dir} 中找到固件文件")
+        return None
+
+    def __init__(self, port: str, baudrate: int = 115200, timeout: int = 30,
+                 log_dir: str = None, tftp_server_ip: str = "192.168.3.100",
+                 tftp_firmware_dir: str = None, firmware_name: str = None):
         """
         初始化串口客户端
 
@@ -24,6 +60,9 @@ class SerialClient:
             baudrate: 波特率（默认115200）
             timeout: 读取超时时间（秒）
             log_dir: 日志目录（默认为 logs/serial/）
+            tftp_server_ip: TFTP服务器IP（默认192.168.3.100）
+            tftp_firmware_dir: TFTP固件目录（默认为 E:\\GIT\\ROUTER_TEST\\docs\\upload\\old）
+            firmware_name: 固件文件名（如果不指定，则自动检测）
         """
         self.port = port
         self.baudrate = baudrate
@@ -47,10 +86,28 @@ class SerialClient:
         self.boot_prompt = "=>"
 
         # TFTP配置（用于固件烧录）
-        self.tftp_server_ip = "192.168.3.100"
+        self.tftp_server_ip = tftp_server_ip
         self.device_ip_com7 = "192.168.3.7"  # COM7对应的设备IP
         self.device_ip_com8 = "192.168.3.8"  # COM8对应的设备IP
-        self.firmware_name = "32.3.0.7.ext2"  # 旧版本固件名
+
+        # TFTP固件目录
+        if tftp_firmware_dir is None:
+            tftp_firmware_dir = r"E:\GIT\ROUTER_TEST\docs\upload\old"
+        self.tftp_firmware_dir = tftp_firmware_dir
+
+        # 固件文件名：优先使用指定的，否则自动检测
+        if firmware_name:
+            self.firmware_name = firmware_name
+            print(f"✅ 使用指定的固件文件: {firmware_name}")
+        else:
+            detected = self.detect_firmware_file(tftp_firmware_dir)
+            if detected:
+                self.firmware_name = detected
+                print(f"✅ 自动检测到固件文件: {detected}")
+            else:
+                # 使用默认值
+                self.firmware_name = "32.3.0.7.ext2"
+                print(f"⚠️ 固件文件检测失败，使用默认值: {self.firmware_name}")
 
         # 日志配置
         if log_dir is None:
@@ -382,15 +439,23 @@ class SerialClient:
         self._log_info("发送用户名...")
         self.send_command(self.username, wait_time=1)
 
-        # 发送密码
+        # 发送密码并获取响应
         self._log_info("发送密码...")
-        self.send_command(self.password, wait_time=2)
+        password_output = self.send_command(self.password, wait_time=2)
 
-        # 验证登录（宽松检测）
+        # 验证登录 - 检查密码发送后的响应
         self._log_info("验证登录...")
+
+        # 先检查send_command返回的输出（密码发送后的响应）
+        if password_output and "root@" in password_output and "#" in password_output:
+            self._log_info(f"✅ 串口 {self.port} 登录成功（密码响应检测）")
+            print(f"\n✅ 串口 {self.port} 登录成功")
+            return True
+
+        # 如果密码响应中没有检测到，继续等待新数据（最多5秒）
         start_time = time.time()
-        buffer = ""
-        timeout = 10
+        buffer = password_output if password_output else ""
+        timeout = 5  # 减少到5秒，因为通常立即就有响应
 
         while time.time() - start_time < timeout:
             if self.serial.in_waiting > 0:
@@ -631,23 +696,13 @@ class SerialClient:
         print("步骤4: 执行升级命令 'run updata-image'...")
         self.send_command("run updata-image", wait_time=2)
 
-        # 5. 等待上传开始（检测 "Loading: #####"）
-        print("步骤5: 等待固件上传...")
-        found, output = self.read_until("Loading:", timeout=30)
-        if not found:
-            print("❌ 固件上传未开始")
-            return False
-
-        # 继续等待上传符号（#####）
-        time.sleep(2)
-        if self.serial.in_waiting > 0:
-            upload_output = self.serial.read(self.serial.in_waiting).decode('utf-8', errors='ignore')
-            print(upload_output, end='', flush=True)
-            if "#" in upload_output:
-                print("\n✅ 固件正在上传中...")
-
-        # 6. 等待烧录完成（检测 "written: OK"）
-        print("步骤6: 等待烧录完成...")
+        # 5. 等待烧录完成（检测 "written: OK"）
+        # ⚠️ 不检测"Loading:"，因为send_command()清空了缓冲区
+        # TFTP下载会在后台进行，直接等待最终的完成标志
+        print("步骤5: 等待固件下载和烧录完成...")
+        print("  ℹ️  TFTP下载固件需要约30-60秒")
+        print("  ℹ️  写入Flash需要约60-120秒")
+        print("  ⏳ 预计总耗时约2-3分钟，请耐心等待...")
         found, output = self.read_until("written: OK", timeout=300)  # 最多等待5分钟
         if not found:
             print("❌ 烧录未完成")
@@ -655,26 +710,26 @@ class SerialClient:
 
         print("✅ 烧录完成")
 
-        # 7. 等待返回Boot提示符
-        print("步骤7: 等待返回Boot提示符...")
+        # 6. 等待返回Boot提示符
+        print("步骤6: 等待返回Boot提示符...")
         found, output = self.read_until(self.boot_prompt, timeout=30)
         if not found:
             print("⚠️ 警告: 未检测到Boot提示符，但烧录已完成")
 
-        # 8. 发送reset命令
-        print("步骤8: 发送reset命令重启设备...")
+        # 7. 发送reset命令
+        print("步骤7: 发送reset命令重启设备...")
         self.send_command("reset", wait_time=2)
 
-        # 9. 验证reset成功（检测 "resetting ..."）
-        print("步骤9: 验证reset命令...")
+        # 8. 验证reset成功（检测 "resetting ..."）
+        print("步骤8: 验证reset命令...")
         found, output = self.read_until("resetting", timeout=10)
         if found:
             print("✅ 设备正在重启...")
         else:
             print("⚠️ 警告: 未检测到重启信息，但已发送reset命令")
 
-        # 10. 等待设备重启（120秒 = 2分钟）
-        print("步骤10: 等待设备重启（120秒 = 2分钟）...")
+        # 9. 等待设备重启（120秒 = 2分钟）
+        print("步骤9: 等待设备重启（120秒 = 2分钟）...")
         print("  ⏳ 设备重启需要约2分钟，请耐心等待...")
         time.sleep(120)  # 增加到2分钟，确保设备完全重启
 
@@ -704,6 +759,17 @@ class SerialClient:
         time.sleep(1)  # 等待1秒，让设备完全启动到登录界面
 
         return self.login()
+
+    def set_firmware_name(self, firmware_name: str):
+        """
+        动态设置固件文件名（用于遍历多个固件）
+
+        Args:
+            firmware_name: 固件文件名（如 "32.3.0.7.ext2"）
+        """
+        self.firmware_name = firmware_name
+        self._log_info(f"固件文件名已更新: {firmware_name}")
+        print(f"✅ 固件文件名已更新: {firmware_name}")
 
     def set_bridge_ip(self, bridge_ip: str) -> bool:
         """

@@ -32,9 +32,6 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
     category = "功能用例/APP/python"
     is_regression = True  # 标记为回归测试用例
 
-    # SDK文件路径
-    SDK_FILE_PATH = r"E:\GIT\ROUTER_TEST\config\pysdk-ur3x-5.0.2-u1.tar.gz"
-
     # 内存测试场景（单位：KB）
     MEMORY_SCENARIOS = [
         {"name": "~50M", "target": 51200, "min": 48000, "max": 54000, "cycles": 10},
@@ -56,6 +53,9 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
     def __init__(self, config):
         """初始化方法"""
         super().__init__(config)
+
+        # 动态获取SDK文件路径
+        self.SDK_FILE_PATH = self.get_sdk_file_path()
 
         # 获取路由器配置
         self.router_ip = self.config.router_config.router_ip
@@ -82,16 +82,22 @@ class PythonSDKLowMemoryInstallTest(BaseTest):
             raise FileNotFoundError(f"SDK文件不存在: {self.SDK_FILE_PATH}")
         print(f"✅ SDK文件存在\n")
 
-        # 建立SSH连接
-        print("建立SSH连接...")
-        self._connect_ssh()
-        print("✅ SSH连接成功\n")
-
-        # 登录Web界面
+        # 登录Web界面（必须先登录才能启用SSH）
         print("登录路由器Web界面...")
         if not self.router_client.login_web():
             raise Exception("Web登录失败")
         print("✅ Web登录成功\n")
+
+        # 检查并启用SSH（新版本固件默认关闭SSH）
+        print("前置条件: 检查SSH启用状态...")
+        if not self.router_client.ensure_ssh_enabled():
+            raise Exception("SSH未启用且自动启用失败，无法继续测试")
+        print("✅ SSH已就绪\n")
+
+        # 建立SSH连接
+        print("建立SSH连接...")
+        self._connect_ssh()
+        print("✅ SSH连接成功\n")
 
     def execute(self):
         """执行测试"""

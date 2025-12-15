@@ -280,7 +280,8 @@ def run_tests():
             mqtt_broker=data.get('mqtt_broker', '192.168.50.46'),
             mqtt_port=int(data.get('mqtt_port', 1883)),  # 确保转换为整数
             modbus_server_ip=data.get('modbus_server_ip', '192.168.1.100'),
-            modbus_port=int(data.get('modbus_port', 5020))  # 确保转换为整数
+            modbus_port=int(data.get('modbus_port', 5020)),  # 确保转换为整数
+            incognito_mode=data.get('incognito_mode', False)  # 默认使用普通模式
         )
 
         print(f"构建的路由器配置: {router_config}")
@@ -348,7 +349,8 @@ def start_test_stream():
             mqtt_broker=data.get('mqtt_broker', '192.168.50.46'),
             mqtt_port=int(data.get('mqtt_port', 1883)),  # 确保转换为整数
             modbus_server_ip=data.get('modbus_server_ip', '192.168.1.100'),
-            modbus_port=int(data.get('modbus_port', 5020))  # 确保转换为整数
+            modbus_port=int(data.get('modbus_port', 5020)),  # 确保转换为整数
+            incognito_mode=data.get('incognito_mode', False)  # 默认使用普通模式
         )
 
         # 处理测试模式

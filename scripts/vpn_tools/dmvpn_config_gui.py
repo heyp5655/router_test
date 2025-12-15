@@ -511,31 +511,59 @@ class DMVPNServerConfigGUI:
             self.log(f"SSH连接失败: {str(e)}", "ERROR")
             return False
 
-    def run_ssh_command(self, command: str, use_sudo: bool = True) -> tuple:
-        """执行SSH命令"""
+    def run_ssh_command(self, command: str, use_sudo: bool = True, timeout: int = 30) -> tuple:
+        """执行SSH命令
+
+        Args:
+            command: 要执行的命令
+            use_sudo: 是否使用sudo
+            timeout: 命令超时时间（秒）
+
+        Returns:
+            (stdout, stderr, exit_code) 元组
+        """
         try:
             if use_sudo:
                 # 使用stdin传递密码更安全
                 full_command = f"sudo -S {command}"
-                stdin, stdout, stderr = self.ssh_client.exec_command(full_command)
-                stdin.write(self.ssh_password.get() + '\n')
-                stdin.flush()
             else:
                 full_command = command
-                stdin, stdout, stderr = self.ssh_client.exec_command(full_command)
 
+            # 🔧 修复关键：使用get_pty=True为命令分配伪终端
+            # 这对于init.d服务脚本和某些系统命令是必需的
+            stdin, stdout, stderr = self.ssh_client.exec_command(
+                full_command,
+                get_pty=True,  # ✅ 分配伪终端
+                timeout=timeout  # ✅ 设置超时
+            )
+
+            if use_sudo:
+                stdin.write(self.ssh_password.get() + '\n')
+                stdin.flush()
+
+            # 等待命令完成并读取输出
             out = stdout.read().decode('utf-8', errors='ignore')
             err = stderr.read().decode('utf-8', errors='ignore')
 
-            # 如果有错误输出，记录到日志
-            if err and not err.startswith('[sudo]'):
-                self.log(f"命令执行警告: {err.strip()}", "WARNING")
+            # 获取退出码
+            exit_code = stdout.channel.recv_exit_status()
 
-            return out, err
+            # 记录命令执行结果
+            if exit_code != 0:
+                self.log(f"命令退出码: {exit_code}", "WARNING")
+
+            # 如果有错误输出，记录到日志（排除sudo提示和伪终端输出）
+            if err:
+                err_lines = [line for line in err.split('\n')
+                           if line.strip() and not line.startswith('[sudo]')]
+                if err_lines:
+                    self.log(f"命令错误输出: {' '.join(err_lines)}", "WARNING")
+
+            return out, err, exit_code
 
         except Exception as e:
             self.log(f"命令执行异常: {str(e)}", "ERROR")
-            return "", str(e)
+            return "", str(e), -1
 
     def generate_racoon_config(self) -> str:
         """生成Racoon配置文件内容"""

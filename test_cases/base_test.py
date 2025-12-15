@@ -18,6 +18,44 @@ class BaseTest(ABC):
     SSH_ROOT_USERNAME = "root"
     SSH_ROOT_PASSWORD = "R0uT3&U&s@l1nk46#3"
 
+    # Python SDK目录（统一管理）
+    SDK_DIRECTORY = r"E:\GIT\ROUTER_TEST\config\python_sdk"
+
+    @staticmethod
+    def get_sdk_file_path():
+        """
+        动态获取Python SDK文件路径
+
+        从 config/python_sdk 目录下查找第一个 .tar.gz 文件
+
+        Returns:
+            str: SDK文件的完整路径
+
+        Raises:
+            FileNotFoundError: 如果目录不存在或找不到SDK文件
+        """
+        import os
+        import glob
+
+        sdk_dir = BaseTest.SDK_DIRECTORY
+
+        # 检查目录是否存在
+        if not os.path.exists(sdk_dir):
+            raise FileNotFoundError(f"SDK目录不存在: {sdk_dir}")
+
+        # 查找所有.tar.gz文件
+        sdk_files = glob.glob(os.path.join(sdk_dir, "*.tar.gz"))
+
+        if not sdk_files:
+            raise FileNotFoundError(f"在目录 {sdk_dir} 中找不到SDK文件 (*.tar.gz)")
+
+        # 返回第一个找到的SDK文件（按文件名排序，取最新的）
+        sdk_files.sort(reverse=True)  # 降序排序，新版本在前
+        sdk_path = sdk_files[0]
+
+        print(f"📦 找到SDK文件: {os.path.basename(sdk_path)}")
+        return sdk_path
+
     def __init__(self, config: TestConfig = None):
         print(f"=== BaseTest 初始化开始 ===")
         print(f"传入的 config 类型: {type(config)}")
@@ -261,8 +299,12 @@ class BaseTest(ABC):
         if router_ip is None:
             router_ip = self.config.router_config.router_ip
 
-        # SDK文件路径
-        SDK_FILE_PATH = r"E:\GIT\ROUTER_TEST\config\pysdk-ur3x-5.0.2-u1.tar.gz"
+        # 动态获取SDK文件路径
+        try:
+            SDK_FILE_PATH = self.get_sdk_file_path()
+        except FileNotFoundError as e:
+            print(f"❌ {str(e)}")
+            return False
 
         print("检查Python SDK是否已安装...")
 

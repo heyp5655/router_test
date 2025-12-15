@@ -95,6 +95,7 @@ class FirewallSecurityPortConflictTest(BaseTest):
         if not self.router_client.login_web():
             raise Exception("无法登录路由器Web界面")
 
+        print("ℹ️  注意：本测试只检测冲突弹窗，不会真正保存配置，无需备份恢复")
         print("✅ 前置条件完成")
 
     def execute(self):
@@ -141,7 +142,7 @@ class FirewallSecurityPortConflictTest(BaseTest):
         """测试清理"""
         print("\n=== 测试清理 ===")
         try:
-            # 清理：刷新页面
+            print("ℹ️  本测试不会保存配置到路由器，无需恢复")
             print("刷新页面清理测试状态...")
             self.router_client.driver.refresh()
             time.sleep(2)

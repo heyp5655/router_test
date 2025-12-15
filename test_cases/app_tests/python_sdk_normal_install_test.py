@@ -26,9 +26,6 @@ class PythonSDKNormalInstallTest(BaseTest):
     category = "功能用例/APP/python"
     is_regression = True  # 标记为回归测试用例
 
-    # SDK文件路径
-    SDK_FILE_PATH = r"E:\GIT\ROUTER_TEST\config\pysdk-ur3x-5.0.2-u1.tar.gz"
-
     @property
     def test_name(self):
         """实现抽象属性，返回测试名称"""
@@ -42,6 +39,9 @@ class PythonSDKNormalInstallTest(BaseTest):
     def __init__(self, config):
         """初始化方法"""
         super().__init__(config)
+
+        # 动态获取SDK文件路径
+        self.SDK_FILE_PATH = self.get_sdk_file_path()
 
         # 获取路由器配置
         self.router_ip = self.config.router_config.router_ip

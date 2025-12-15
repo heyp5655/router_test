@@ -55,6 +55,18 @@ class CellularCfunTimeTest(BaseTest):
     def setup(self):
         """测试前置条件"""
         print(f"INFO - {self.__class__.__name__}: 前置条件检查")
+
+        # 虽然不需要Web登录，但需要验证SSH连通性
+        print("前置条件: 检查SSH连通性...")
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(self.router_ip, username=self.SSH_ROOT_USERNAME, password=self.SSH_ROOT_PASSWORD, timeout=10)
+            ssh.close()
+            print("✅ SSH连接成功")
+        except Exception as e:
+            raise Exception(f"SSH连接失败: {str(e)}")
+
         print("✅ 前置条件：无特殊要求（此用例不需要Web登录）")
 
     def execute(self):

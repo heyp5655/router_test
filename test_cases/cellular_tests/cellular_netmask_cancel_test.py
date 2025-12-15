@@ -73,6 +73,13 @@ class CellularNetmaskCancelTest(BaseTest):
                 raise Exception("登录失败")
 
         print("✅ 路由器登录成功")
+
+        # 检查并启用SSH（新版本固件默认关闭SSH）
+        print("前置条件: 检查SSH启用状态...")
+        if not self.router_client.ensure_ssh_enabled():
+            raise Exception("SSH未启用且自动启用失败，无法继续测试")
+        print("✅ SSH已就绪")
+
         print("✅ 前置条件：设备SIM1已插卡（假设已满足）")
         print("✅ 前置条件：蜂窝SIM1的子网掩码将在步骤1设置为255.0.0.0")
 

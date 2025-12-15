@@ -48,6 +48,16 @@ class ModuleCodeDisplayTest(BaseTest):
     # urtool密码
     URTOOL_PASSWORD = "XmLs@2013#0592"
 
+    def create_router_client(self, router_config):
+        """创建路由器客户端"""
+        try:
+            from core.router_client import RouterClient
+            print(f"✅ 成功从 core.router_client 导入 RouterClient")
+            return RouterClient(router_config)
+        except ImportError as e:
+            print(f"❌ 无法从 core.router_client 导入: {e}")
+            raise
+
     @property
     def test_name(self):
         """实现抽象属性，返回测试名称"""
@@ -75,6 +85,15 @@ class ModuleCodeDisplayTest(BaseTest):
         self.test_results = []
         self.passed_count = 0
         self.failed_count = 0
+
+        # 创建router_client用于SSH检查
+        self.router_client = self.create_router_client(self.config.router_config)
+
+        # 检查并启用SSH（新版本固件默认关闭SSH）
+        print("前置条件: 检查SSH启用状态...")
+        if not self.router_client.ensure_ssh_enabled():
+            raise Exception("SSH未启用且自动启用失败，无法继续测试")
+        print("✅ SSH已就绪")
 
     def execute(self):
         """执行测试 - 遍历所有模组代号"""

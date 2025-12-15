@@ -26,6 +26,7 @@ class RouterConfig:
     mqtt_password: str = "password"  # MQTT密码
     modbus_server_ip: str = "192.168.1.100"  # Modbus Server IP (PC IP，与路由器同网段)
     modbus_port: int = 5020  # Modbus端口
+    incognito_mode: bool = True  # 浏览器无痕模式（默认True，更接近真实用户场景可设为False）
 
 
 @dataclass

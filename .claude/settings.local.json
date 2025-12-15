@@ -30,7 +30,20 @@
       "Bash(sshpass:*)",
       "Bash(ping:*)",
       "Bash(ssh-keygen:*)",
-      "Bash(chcp 65001)"
+      "Bash(chcp 65001)",
+      "Bash(done)",
+      "Bash(cmd /c \"dir /B E:\\GIT\\ROUTER_TEST\\test_cases\\stability\")",
+      "Bash(cmd /c \"dir /B /O-D E:\\GIT\\ROUTER_TEST\\config\\router_pages_analysis_*.xlsx\")",
+      "Bash(copy \"config\\router_pages_analysis_20251211_142132.xlsx\" \"backup\\cleanup_20251211\"\" && copy \"configrouter_pages_analysis_20251211_143009.xlsx\" \"backupcleanup_20251211\"\")",
+      "Bash(copy \"config\\router_pages_analysis_v2_20251211_143316.xlsx\" \"backup\\cleanup_20251211\"\" && copy \"configrouter_pages_analysis_v3_20251211_143651.xlsx\" \"backupcleanup_20251211\"\")",
+      "Bash(copy \"config\\router_pages_analysis_v3_20251211_144042.xlsx\" \"backup\\cleanup_20251211\"\" && echo \"Excel文件已备份 \")",
+      "Bash(python -c:*)",
+      "Bash(dir \"E:\\GIT\\ROUTER_TEST\\docs\\upload\\new\" /b)",
+      "Bash(git log:*)",
+      "Bash(git checkout:*)",
+      "Bash(git status:*)",
+      "Bash(python scripts/read_excel.py:*)",
+      "Bash(dir \"E:\\GIT\\ROUTER_TEST\\docs\\upload\\new\")"
     ],
     "deny": [],
     "ask": []

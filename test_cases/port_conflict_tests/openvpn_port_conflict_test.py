@@ -91,6 +91,13 @@ class OpenVPNPortConflictTest(BaseTest):
         if not self.router_client.login_web():
             raise Exception("无法登录路由器Web界面")
 
+        # 备份当前配置
+        self.original_config = self.router_client.backup_openvpn_config()
+        if self.original_config:
+            print("✅ 配置备份成功，测试完成后将恢复配置")
+        else:
+            print("⚠️  配置备份失败，测试完成后将无法恢复配置")
+
         print("✅ 前置条件完成")
 
     def execute(self):
@@ -129,12 +136,24 @@ class OpenVPNPortConflictTest(BaseTest):
         print("   所有保留端口都能正确检测冲突并弹出提示")
 
     def cleanup(self):
-        """测试后清理"""
+        """测试清理"""
         print("\n=== 测试清理 ===")
         try:
-            # 可选: 恢复OpenVPN配置到初始状态
-            # 由于这是端口冲突检测测试，不需要特殊清理
-            print("OpenVPN端口冲突检测测试无需特殊清理")
-            print("✅ 清理完成")
+            # 恢复原始配置
+            if hasattr(self, 'original_config') and self.original_config:
+                print("恢复OpenVPN配置...")
+                if self.router_client.restore_openvpn_config(self.original_config):
+                    print("✅ 配置已恢复到测试前的状态")
+                else:
+                    print("⚠️  配置恢复失败，请手动检查配置")
+            else:
+                print("⚠️  没有备份配置，跳过恢复步骤")
+                # 备用：刷新页面
+                print("刷新页面清理测试状态...")
+                self.router_client.driver.refresh()
+                time.sleep(2)
         except Exception as e:
-            print(f"⚠️  清理过程中出现错误: {str(e)}")
+            print(f"⚠️  清理过程出错: {e}")
+
+        super().cleanup()
+        print("✅ 测试清理完成")

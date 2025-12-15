@@ -85,8 +85,13 @@ class TestRunner:
         self.last_test_request = None  # 保存最后一次测试请求
         self.failed_cases = []  # 保存失败的测试用例类名列表
 
+        # 新增：记录test_cases目录的最后扫描时间
+        self._last_scan_time = 0
+        self._test_cases_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_cases')
+
         self._log("开始发现测试用例")
         self.available_cases = self._discover_test_cases()
+        self._update_scan_time()
         self._log(f"TestRunner 初始化完成，发现 {len(self.available_cases)} 个测试用例")
 
     def set_log_callback(self, callback: Optional[Callable]):
@@ -359,7 +364,13 @@ class TestRunner:
                 hasattr(obj, 'setup'))
 
     def get_available_cases(self, regression_only: bool = False) -> List[Dict[str, Any]]:
-        """获取可用测试用例列表"""
+        """获取可用测试用例列表
+
+        会自动检测test_cases目录是否有更新，如有则自动刷新测试用例列表
+        """
+        # 自动检测并刷新（如果需要）
+        self._check_and_refresh_if_needed()
+
         if regression_only:
             return [case for case in self.available_cases if case.get('is_regression', False)]
         return self.available_cases
@@ -679,6 +690,7 @@ class TestRunner:
 
         # 重新发现测试用例
         self.available_cases = self._discover_test_cases()
+        self._update_scan_time()
 
         new_count = len(self.available_cases)
 
@@ -692,6 +704,56 @@ class TestRunner:
             self._log("✅ 测试用例数量没有变化")
 
         return self.available_cases
+
+    def _update_scan_time(self):
+        """更新最后扫描时间为test_cases目录的最新修改时间"""
+        try:
+            self._last_scan_time = self._get_test_cases_dir_mtime()
+        except Exception as e:
+            self._log(f"⚠️ 更新扫描时间失败: {e}", "WARNING")
+            self._last_scan_time = time.time()
+
+    def _get_test_cases_dir_mtime(self) -> float:
+        """获取test_cases目录及其子目录中所有.py文件的最新修改时间"""
+        max_mtime = 0
+        try:
+            for root, dirs, files in os.walk(self._test_cases_dir):
+                for file in files:
+                    if file.endswith('.py') and not file.startswith('__'):
+                        file_path = os.path.join(root, file)
+                        try:
+                            mtime = os.path.getmtime(file_path)
+                            if mtime > max_mtime:
+                                max_mtime = mtime
+                        except:
+                            continue
+        except Exception as e:
+            self._log(f"⚠️ 获取目录修改时间失败: {e}", "WARNING")
+        return max_mtime if max_mtime > 0 else time.time()
+
+    def _check_and_refresh_if_needed(self) -> bool:
+        """检查test_cases目录是否有更新，如有则自动刷新测试用例
+
+        Returns:
+            bool: 是否进行了刷新
+        """
+        try:
+            current_mtime = self._get_test_cases_dir_mtime()
+            if current_mtime > self._last_scan_time:
+                self._log(f"🔄 检测到测试用例文件变化，自动刷新...", "INFO")
+                old_count = len(self.available_cases)
+                self.available_cases = self._discover_test_cases()
+                self._update_scan_time()
+                new_count = len(self.available_cases)
+
+                if new_count != old_count:
+                    self._log(f"✅ 自动刷新完成：{old_count} → {new_count} 个测试用例", "INFO")
+                else:
+                    self._log(f"✅ 自动刷新完成：测试用例数量未变化 ({new_count}个)", "INFO")
+                return True
+        except Exception as e:
+            self._log(f"⚠️ 自动刷新检查失败: {e}", "WARNING")
+        return False
 
     def get_test_results(self) -> List[Dict[str, Any]]:
         """获取测试结果"""
